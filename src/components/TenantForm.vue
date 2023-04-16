@@ -1,6 +1,5 @@
 <template>
 
-  <!-- v-model="dialog" -->
   <v-dialog
     persistent
     activator="parent"
@@ -10,7 +9,7 @@
         <v-form ref="formInput">
           <v-card>
             <v-card-title class="ml-5 mt-5">
-              <span class="text-h5">Novo Inquilino</span>
+              <span class="text-h5">{{tenantId == null ? "Novo" : "Editar"}} Inquilino</span>
             </v-card-title>
             <v-card-text>
               <v-container>
@@ -83,6 +82,7 @@
 
               <!-- EXCLUIR -->
               <v-btn
+                v-if="isEditing"
                 color="red-darken-1"
                 variant="text"
                 @click="remove"
@@ -155,6 +155,7 @@
 
 <script lang="ts">
   import { Utils } from '@/utils/utils';
+  import { inject } from 'vue';
   import { TenantValidator } from '@/modules/Tenant';
   import { Tenant, useTenantStore } from '@/store/tenants';
   import moment from 'moment';
@@ -162,17 +163,23 @@
   export default {
     // props: [ "form" ],
     props: [ 'update','tenantId' ],
+    setup(){
+      const showNotification = <Function> inject('showNotification')
+      return {
+        showNotification
+      }
+    },
     data: () => ({
       tenantStore: useTenantStore(),
       loadingDialog: false,
       tenant: {
-        name: 'TESTE',
-        cpf: '40170205851',
-        rg: '48138618',
+        name: '',
+        cpf: '',
+        rg: '',
         birth_date: 0
       } as Tenant,
       cpfInput: '',
-      birthDateInput: '12/12/1991',
+      birthDateInput: '',
       validator: new TenantValidator()
     }),
     created() {
@@ -180,18 +187,23 @@
         let tenant = this.tenantStore
           .getTenantById(this.tenantId) as Tenant;
         this.tenant = {...tenant};
+        this.cpfInput = this.tenant.cpf;
+        this.formatCpf();        
         this.birthDateInput = moment(tenant.birth_date, 'X').format('DD/MM/YYYY');
+      } else {
+        this.tenant.name = 'TESTE';
+        // this.tenant.cpf = '';
+        this.tenant.rg = '48138618';
+        this.tenant.birth_date = 0;
+
+        this.cpfInput = '092.421.600-08'
+        this.birthDateInput = '12/12/1991';
       }
-      console.log('created', this.tenantId);
     },
-    beforeCreate() {
-      console.log('beforecreateAAA -- ', this.tenantId);
-    },
-    
     computed: {
-      // dialog() {
-      //   return this.form;
-      // },
+      isEditing() {
+        return this.tenantId !== undefined && this.tenantId !== null;
+      },
 
       // birthDateTimestamp() {
       //   let date = moment(this.tenant.birthDate, "DD/MM/YYYY", true);
@@ -218,32 +230,43 @@
       }
     },
     methods: {
-      async remove() {
-        this.loadingDialog = true;
-        // console.log("FFFFFF", this.tenantId, {...this.tenant})
-        // debugger
-        if(this.tenantId !== null) {
-          await this.tenantStore.delete({...this.tenant});          
-        }
-        this.$emit('close');
-      },
-
-      async save() {        
+      async save() {
         const { valid } = await (this.$refs.formInput as any).validate();
         if (valid) {
-          this.loadingDialog = true;
-          if(this.tenantId === null) {
-            await this.tenantStore.add({...this.tenant});
-          } else {
-            // console.log(" upda", this.tenant);
+          try {
+            this.loadingDialog = true;
             
-            await this.tenantStore.update({...this.tenant});
-          }
-          // TODO saving message
-          // TODO error message
-          this.$emit('close');
+            if(this.isEditing) {
+              await this.tenantStore.update({...this.tenant});
+            } else {
+              await this.tenantStore.add({...this.tenant});
+            }
+            this.showNotification('success', 'Inquilino salvo com sucesso!')
+            this.$emit('close');
+          } catch (err) {
+            // console.log(err)
+          this.loadingDialog = false;
+          this.showNotification('error', 'Não foi possível salvar o inquilino.')
+          }          
         }
       },
+
+      async remove() {
+        this.loadingDialog = true;
+        try {
+          if(this.tenantId !== null) {
+            await this.tenantStore.delete({...this.tenant});          
+          }
+          this.showNotification('success', 'Inquilino excluído com sucesso!')
+          this.$emit('close');
+        } catch (err) {
+          // console.log(err)
+          this.loadingDialog = false;
+          this.showNotification('error', 'Não foi possível excluir o inquilino.')          
+        }
+      },
+
+      
 
       allowOnlyNumber(e:any) {
         if(/\d/.test(e.key)) {

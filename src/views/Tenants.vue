@@ -4,7 +4,7 @@
 
     <v-card-text>
       <v-card-actions>
-        <v-btn class="mb-2" variant="tonal" @click="teste();">
+        <v-btn class="mb-2" variant="tonal" @click="tenantStore.get();">
           Update
         </v-btn>
         <v-spacer></v-spacer>
@@ -28,10 +28,7 @@
             <template v-slot:default="{ expanded }">
               <v-row no-gutters>
                 <v-col cols="10" class="d-flex justify-start">
-                  <span v-if="expanded" :key="t.id">
-                    Full {{ t.name }}
-                  </span>
-                  <span v-else key="1">
+                  <span v-if="!expanded" :key="t.id">
                     {{ t.name }}
                   </span>
                 </v-col>
@@ -120,16 +117,23 @@
 </template>
 
 <script lang="ts">
-  // import { Operation } from '@/enum';
+  import { inject } from 'vue';
   import { Utils } from '@/utils/utils';
   import moment from 'moment';
   import TenantForm from '@/components/TenantForm.vue';
   import { Tenant, useTenantStore } from '@/store/tenants';
-  type Selected = number | null;
 
+  type Selected = number | null;
+  
   export default {
     components: {
       TenantForm,
+    },
+    setup(){
+      const showNotification = <Function> inject('showNotification')
+      return {
+        showNotification
+      }
     },
     data: () => ({
       tenantStore: useTenantStore(),
@@ -137,25 +141,25 @@
       selectedTenant: <Selected> null
     }),
     created() {
-      this.tenantStore.get();
-      // this.tenantStore.add({ id: 0, name: 'TESTE 111', cpf: '48778634865', rg: '11111111', birth_date: 1445738400 });
-      // this.tenantStore.add({ id: 1, name: 'TESTE 222', cpf: '07893646039', rg: '22222222', birth_date: 1445732326 });
-      // this.tenantStore.add({ id: 2, name: 'TESTE 333', cpf: '26294154227', rg: '33333333', birth_date: 1445732326 });
+      this.getTenants();
     },
     methods: {
+      async getTenants() {
+        try {
+          await this.tenantStore.get();
+        } catch (err) {
+          // console.log(err)
+          this.showNotification('error', 'Não foi possível atualizar a tela.')
+        }
+      },
+      addTenant() {
+        this.showTenantDialog = true;
+      },
       deleteFromList(e:any, id:number) {    
         e.stopPropagation()        
         let tenant = this.tenantStore.getTenantById(id) as Tenant;
         this.tenantStore.delete(tenant);
       },
-      
-      teste() {
-        this.tenantStore.get()
-      },
-      addTenant() {
-        this.showTenantDialog = true;
-      },
-
       async editTenant(tenantId: number) {
         this.showTenantDialog = true;
         this.selectedTenant = tenantId;

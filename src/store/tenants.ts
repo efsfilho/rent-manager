@@ -21,12 +21,12 @@ export interface Tenants extends Array<Tenant>{}
 const url = 'http://10.0.0.11:1323'
 export const useTenantStore = defineStore('tenantStore', {
   state: () => ({
-    tenants: <Tenants> []
+    rawTenants: <Tenants> []
   }),
   // state,
   getters: {
     getTenants(state) {
-      return state.tenants
+      return state.rawTenants
     },
     // getTenantById: (state) => {
     //   return (id: number) =>
@@ -35,44 +35,43 @@ export const useTenantStore = defineStore('tenantStore', {
     // },
     getTenantById(state) {
       const filter = (id: number) => {
-        return state.tenants.find((item) => item.id === id);
+        return state.rawTenants.find((item) => item.id === id);
       }
       return filter;
     }
   },
 
   actions: {
-    async get() {
-      // await new Promise((resolve) => setTimeout(() => resolve(1), 5000))
-      this.tenants = []
-      const tenants = await axios.get(`${url}/tenants`);
-      // console.log(tenants.data);
-      if (tenants.data) {
-        this.tenants = [...tenants.data];
-      }
-    },
-    async add(tenant: Tenant) {
-      // TODO send to api and wait for it's response
-      await axios.post(`${url}/tenants`, tenant);
-      // this.tenants.push(tenant);
+    async add(content: Tenant) {
+      await axios.post(`${url}/tenants`, content);
       await this.get()
     },
-    async update(tenant: Tenant) {
-      const getIndex = (item: Tenant) => {
-        return item.id === tenant.id
+
+    async get() {
+      this.rawTenants = []
+      const tenants = await axios.get(`${url}/tenants`);
+      if (tenants.data) {
+        this.rawTenants = [...tenants.data];
       }
-      const i = this.tenants.findIndex(getIndex);
-      const { id } = tenant
-      await axios.put(`${url}/tenants/${id}`, tenant)
-      this.tenants[i] = tenant
     },
-    async delete(tenant: Tenant) {
+    
+    async update(content: Tenant) {
       const getIndex = (item: Tenant) => {
-        return item.id === tenant.id
+        return item.id === content.id
+      }
+      const i = this.rawTenants.findIndex(getIndex);
+      const { id } = content
+      await axios.put(`${url}/tenants/${id}`, content)
+      this.rawTenants[i] = content
+    },
+  
+    async delete(content: Tenant) {
+      const getIndex = (item: Tenant) => {
+        return item.id === content.id
       }
 
-      const i = this.tenants.findIndex(getIndex);
-      const { id } = tenant
+      const i = this.rawTenants.findIndex(getIndex);
+      const { id } = content
       await axios.delete(`${url}/tenants/${id}`)
       await this.get()
     }
