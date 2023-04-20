@@ -3,7 +3,9 @@
       <!-- <v-card class="mx-auto" variant="outlined"> -->
       <!-- <v-app-bar color="surface-variant" title="Application bar"></v-app-bar> -->
       <!-- <Menu></Menu> -->
-      <right-menu></right-menu>
+      <right-menu
+        :menu-links="menuLinks"
+      ></right-menu>
 
       <!-- <v-card class="mx-auto" max-width="344" variant="outlined"> -->
     <v-main style="min-height: 400px;" >
@@ -44,10 +46,10 @@
       notificationType: '',
       notificationMessage: '',
       count: 0,
-      items: [
-        { title: 'Home', icon: 'mdi-home-city' },
-        { title: 'My Account', icon: 'mdi-account' },
-        { title: 'Users', icon: 'mdi-account-group-outline' },
+      menuLinks: [
+        { name: "Alugueis", link: "/rents", icon:"mdi-currency-usd"},
+        { name: "Inquilinos", link: "/tenants", icon:"mdi-account-box" },
+        { name: "Imóveis", link: "/properties", icon:"mdi-home-city" },
       ],
       rail: false,
     }),

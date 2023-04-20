@@ -39,14 +39,20 @@
 
 <script lang="ts">
   export default {
+    props: ['menuLinks'],
     data: () => ({
       drawer: true,
-      links: [
-        { name: "Alugueis", link: "/rents", icon:"mdi-currency-usd"},
-        { name: "Inquilinos", link: "/tenants", icon:"mdi-account-box" },
-        { name: "Imóveis", link: "/properties", icon:"mdi-home-city" },
-      ],
+      // links: [
+      //   // { name: "Alugueis", link: "/rents", icon:"mdi-currency-usd"},
+      //   // { name: "Inquilinos", link: "/tenants", icon:"mdi-account-box" },
+      //   // { name: "Imóveis", link: "/properties", icon:"mdi-home-city" },
+      // ],
       rail: false,
     }),
+    computed: {
+      links() {
+        return this.menuLinks
+      }
+    }
   }
 </script>
