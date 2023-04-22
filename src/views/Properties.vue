@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title>Propriedade</v-card-title>
+    <v-card-title>Propriedades</v-card-title>
 
     <v-card-text>
       <v-card-actions>
@@ -113,9 +113,9 @@
       showPropertyDialod: false,
       selectedProperty: <Selected> null,
     }),
-    // created() {
-    //   this.getProperties();
-    // },
+    created() {
+      this.getProperties();
+    },
     methods: {
       getProperties() {
         try {

@@ -8,26 +8,26 @@ export interface Property {
 }
 
 export interface Properties extends Array<Property>{}
-let idcount = 2;
+// let idcount = 2;
 const url = 'http://10.0.0.11:1323'
 export const usePropertiesStore = defineStore('propertiesStore', {
   state: () => ({
-    // rawProperties: <Properties> []
-    rawProperties: <Properties> [
-      {
-        id: 0,
-        name: "Casa 1",
-        address: "Rua 1"
-      },{
-        id: 1,
-        name: "Casa 2",
-        address: "Rua 2"
-      },{
-        id: 2,
-        name: "Casa 3",
-        address: "Rua 3"
-      }
-    ]
+    rawProperties: <Properties> []
+    // rawProperties: <Properties> [
+    //   {
+    //     id: 0,
+    //     name: "Casa 1",
+    //     address: "Rua 1"
+    //   },{
+    //     id: 1,
+    //     name: "Casa 2",
+    //     address: "Rua 2"
+    //   },{
+    //     id: 2,
+    //     name: "Casa 3",
+    //     address: "Rua 3"
+    //   }
+    // ]
   }),
   
   getters: {
@@ -45,18 +45,16 @@ export const usePropertiesStore = defineStore('propertiesStore', {
 
   actions: {
     async add(content: Property) {
-      // await axios.post(`${url}/properties`, content);
-      // await this.get();
-      idcount++
-      content.id = idcount;
-      this.$state.rawProperties.push(content);
+      await axios.post(`${url}/properties`, content);
+      await this.get();
     },
 
     async get() {
-      // const tenants = await axios.get(`${url}/tenants`);
-      // if (tenants.data) {
-      //   this.tenants = [...tenants.data];
-      // }
+      this.rawProperties = [];
+      const properties = await axios.get(`${url}/properties`);
+      if (properties.data) {
+        this.rawProperties = [...properties.data];
+      }
     },
     
     async update(content: Property) {
@@ -64,9 +62,9 @@ export const usePropertiesStore = defineStore('propertiesStore', {
         return item.id === content.id
       }
       const i = this.rawProperties.findIndex(getIndex);
-      const { id } = content
-      // await axios.put(`${url}/tenants/${id}`, content)
-      this.rawProperties[i] = content
+      const { id } = content;
+      await axios.put(`${url}/properties/${id}`, content);
+      this.rawProperties[i] = content;
     },
 
     async delete(content: Property) {
@@ -76,12 +74,8 @@ export const usePropertiesStore = defineStore('propertiesStore', {
 
       const i = this.properties.findIndex(getIndex);
       const { id } = content
-      // await axios.delete(`${url}/properties/${id}`)
-      // await this.get()
-      this.$state.rawProperties = this.properties.filter(e => e.id !== i)
-      // console.log("delete ", i);
-      
+      await axios.delete(`${url}/properties/${id}`);
+      await this.get();
     }
   }
-
 });
