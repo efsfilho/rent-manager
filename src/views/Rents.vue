@@ -1,69 +1,95 @@
 <template>
-  <card
-    title="Rents"
-  >
-  asdasdsaasd
-</card>
-    <!-- <v-card
-      class="mx-auto"
-      max-width="344"
-    >
-      <v-card-text>
-        <div>Word of the Day</div>
-        <p class="text-h4 text--primary">
-          el·ee·mos·y·nar·y
-        </p>
-        <p>adjective</p>
-        <div class="text--primary">
-          relating to or dependent on charity; charitable.<br>
-          "an eleemosynary educational institution."
-        </div>
-      </v-card-text>
+  <v-card>
+    <v-card-title>Alugueis</v-card-title>
+
+    <v-card-text>
       <v-card-actions>
-        <v-btn
-          variant="text"
-          color="teal-accent-4"
-          @click="reveal = true"
-        >
-          Learn More
+        <!-- <v-btn class="mb-2" variant="tonal" @click="tenantStore.get();"> -->
+        <v-btn class="mb-2" variant="tonal">
+          Update
+        </v-btn>
+        <v-spacer></v-spacer>
+        <!-- <v-btn class="mb-2" @click="addTenant"> -->
+        <v-btn class="mb-2" >
+          Adicionar
         </v-btn>
       </v-card-actions>
 
-      <v-expand-transition>
-        <v-card
-          v-if="reveal"
-          class="transition-fast-in-fast-out v-card--reveal"
-          style="height: 100%;"
+    
+      <v-expansion-panels>
+        <v-expansion-panel
+          v-for="t in items"
+          :key="t.id"
         >
-          <v-card-text class="pb-0">
-            <p class="text-h4 text--primary">
-              Origin
-            </p>
-            <p>late 16th century (as a noun denoting a place where alms were distributed): from medieval Latin eleemosynarius, from late Latin eleemosyna ‘alms’, from Greek eleēmosunē ‘compassion’ </p>
-          </v-card-text>
-          <v-card-actions class="pt-0">
-            <v-btn
-              variant="text"
-              color="teal-accent-4"
-              @click="reveal = false"
-            >
-              Close
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-expand-transition>
-    </v-card> -->
-  
+        <!-- <v-expansion-panel
+          v-for="t in tenants"
+          :key="t.id"
+        > -->
+          <!-- text="Lorem ipsum dolor dsit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." -->
+          <v-expansion-panel-title>
+            <template v-slot:default="{ expanded }">
+              <v-row no-gutters>
+                <v-col cols="10" class="d-flex justify-start">
+                  <span v-if="!expanded" :key="t.id">
+                    {{ t.name }}
+                  </span>
+                </v-col>
+                <v-col class="py-0 my-0">
+                  <!-- <v-btn @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal"> -->
+                  <v-btn size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
+                    delete
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </template>
+          </v-expansion-panel-title>
+
+          <v-expansion-panel-text>
+            <v-container>
+              <v-row>
+
+                <!-- NOME -->
+                <v-col cols="12">
+                  <v-text-field
+                    label="Nome"
+                    :model-value="t.name"
+                    variant="outlined"
+                    readonly
+                  ></v-text-field>
+                </v-col>
+
+              </v-row>
+              <v-row no-gutters>
+                <v-col cols="12" class="d-flex justify-end">
+                  <!-- <v-btn variant="text" @click="editTenant(t.id)"> -->
+                  <v-btn variant="text" >
+                    Editar
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+    </v-card-text>
+  </v-card>  
 
 </template>
 
 <script lang="ts">
-  import Card from "@/components/Card.vue"
+  // import Card from "@/components/Card.vue"
   export default {
     data: () => ({
+      items: [
+        { id: 0, name : 'ASDAS'},
+        { id: 1, name : 'FDSFSE'},
+        { id: 2, name : 'GFHFGH'},
+        { id: 3, name : 'GHJFGJHG'},
+        { id: 4, name : '&¨$%&%¨'},
+      ],
       reveal: false
     }),
-    components: { Card }
+    // components: { Card }
 
   }
 </script>

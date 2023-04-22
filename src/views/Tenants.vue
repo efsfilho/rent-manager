@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title>Tenant</v-card-title>
+    <v-card-title>Inquilinos</v-card-title>
 
     <v-card-text>
       <v-card-actions>
