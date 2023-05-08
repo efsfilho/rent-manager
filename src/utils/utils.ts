@@ -35,4 +35,20 @@ export class Utils {
 
     return charArray.join('');
   }
+
+  static showShortName(name: string, limit: number) {
+    if (!limit) {
+      limit = 10;
+    }
+
+    if (!name && name === '') {
+      return ''
+    }
+
+    if (name.length >= limit) {
+      return `${name.slice(0, limit)}...`;
+    } else {
+      return name;
+    }
+  }
 }

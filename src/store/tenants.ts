@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { Property, usePropertiesStore } from '@/store/properties';
 import axios from 'axios';
 
 export interface Tenant {
@@ -8,6 +9,8 @@ export interface Tenant {
   cpf: string;
   rg: string;
   birth_date: number;
+  property_id: number;
+  property?: Property;
 }
 
 export interface Tenants extends Array<Tenant>{}
@@ -18,12 +21,13 @@ export interface Tenants extends Array<Tenant>{}
 // const state = (): TenantState => ({
 //   items: [],
 // });
-const url = 'http://10.0.0.11:1323'
+const url = 'http://10.0.0.11:1323';
+const propertiesStore = usePropertiesStore();
+
 export const useTenantStore = defineStore('tenantStore', {
   state: () => ({
     rawTenants: <Tenants> []
   }),
-  // state,
   getters: {
     getTenants(state) {
       return state.rawTenants
@@ -48,10 +52,19 @@ export const useTenantStore = defineStore('tenantStore', {
     },
 
     async get() {
-      this.rawTenants = []
+      this.rawTenants = [];
       const tenants = await axios.get(`${url}/tenants`);
       if (tenants.data) {
         this.rawTenants = [...tenants.data];
+
+        // Aditional property data associated with tenant
+        await propertiesStore.get();
+        for (let tenant of this.rawTenants) {
+          if(tenant.property_id != 0) {
+            tenant.property = propertiesStore
+              .getPropertyById(tenant.property_id);
+          }
+        }
       }
     },
     
@@ -76,5 +89,4 @@ export const useTenantStore = defineStore('tenantStore', {
       await this.get()
     }
   }
-
 });

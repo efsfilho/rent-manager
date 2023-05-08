@@ -27,12 +27,26 @@
           <v-expansion-panel-title>
             <template v-slot:default="{ expanded }">
               <v-row no-gutters>
-                <v-col cols="10" class="d-flex justify-start">
+                <v-col cols="10" class="d-flex align-center">
                   <span v-if="!expanded" :key="t.id">
                     {{ t.name }}
+                    <!-- {{ 'salkjdfhslfjksajhlkasjflkasjflksajflksjaflksjasldkjaslkdj' }} -->
                   </span>
+                <!-- </v-col>
+                <v-col cols="4" class="d-flex align-center"> -->
+                  <!-- v-if="t.property_id != 0" -->
+                  <v-chip
+                    v-if="t.property"
+                    class="mx-4"
+                    size="small"
+                    color="primary"
+                    label
+                  >
+                    <v-icon start icon="mdi-home-city-outline"></v-icon>
+                    {{ t.property.name }}
+                  </v-chip>
                 </v-col>
-                <v-col class="py-0 my-0">
+                <v-col class="d-flex align-center">
                   <v-btn @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
                     delete
                   </v-btn>
@@ -130,9 +144,13 @@
       TenantForm,
     },
     setup(){
-      const showNotification = <Function> inject('showNotification')
+      const showNotification = <Function> inject('showNotification');
+      const applyMask = Utils.applyMask;
+      const showShortName = Utils.showShortName;
       return {
-        showNotification
+        showNotification,
+        applyMask,
+        showShortName
       }
     },
     data: () => ({
@@ -148,7 +166,7 @@
         try {
           await this.tenantStore.get();
         } catch (err) {
-          // console.log(err)
+          console.log(err)
           this.showNotification('error', 'Não foi possível atualizar a tela.')
         }
       },
@@ -168,9 +186,9 @@
       getDate(uTime: number) {
         return moment(uTime, 'X').format('DD/MM/YYYY');
       },
-      applyMask(value: string, mask: string) {
-        return Utils.applyMask(value, mask);
-      },
+      // applyMask(value: string, mask: string) {
+      //   return Utils.applyMask(value, mask);
+      // },
 
     },
     watch: {
