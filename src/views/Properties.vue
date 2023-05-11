@@ -4,9 +4,9 @@
 
     <v-card-text>
       <v-card-actions>
-        <!-- <v-btn class="mb-2" variant="tonal" @click="teste();">
+        <v-btn v-if="debugMode" class="mb-2" variant="tonal" @click="getProperties">
           Update
-        </v-btn> -->
+        </v-btn>
         <v-spacer></v-spacer>
         <v-btn class="mb-2" @click="addProperty">
           Adicionar
@@ -28,7 +28,13 @@
                   </span>
                 </v-col>
                 <v-col class="py-0 my-0">
-                  <v-btn @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
+                  <v-btn
+                    v-if="debugMode"
+                    @click="deleteFromList($event, t.id)"
+                    size="x-small"
+                    class="py-0 my-0 d-flex justify-start"
+                    variant="tonal"
+                  >
                     delete
                   </v-btn>
                 </v-col>
@@ -103,8 +109,11 @@
       PropertyForm,
     },
     setup(){
+      // injected var/functions provided by layouts/Home.vue
+      const debugMode = <Boolean> inject('debugMode');
       const showNotification = <Function> inject('showNotification')
       return {
+        debugMode,
         showNotification
       }
     },

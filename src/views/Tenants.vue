@@ -4,7 +4,7 @@
 
     <v-card-text>
       <v-card-actions>
-        <v-btn class="mb-2" variant="tonal" @click="tenantStore.get();">
+        <v-btn v-if="debugMode" class="mb-2" variant="tonal" @click="getTenants">
           Update
         </v-btn>
         <v-spacer></v-spacer>
@@ -47,7 +47,7 @@
                   </v-chip>
                 </v-col>
                 <v-col class="d-flex align-center">
-                  <v-btn @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
+                  <v-btn v-if="debugMode" @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
                     delete
                   </v-btn>
                 </v-col>
@@ -144,10 +144,13 @@
       TenantForm,
     },
     setup(){
+      // injected var/functions provided by layouts/Home.vue
+      const debugMode = <Boolean> inject('debugMode');
       const showNotification = <Function> inject('showNotification');
       const applyMask = Utils.applyMask;
       const showShortName = Utils.showShortName;
       return {
+        debugMode,
         showNotification,
         applyMask,
         showShortName
@@ -166,8 +169,12 @@
         try {
           await this.tenantStore.get();
         } catch (err) {
-          console.log(err)
-          this.showNotification('error', 'Não foi possível atualizar a tela.')
+          if (this.debugMode) {
+            console.log(err);
+            this.showNotification('debug', err);
+          }
+
+          this.showNotification('error', 'Não foi possível atualizar a tela.');
         }
       },
       addTenant() {

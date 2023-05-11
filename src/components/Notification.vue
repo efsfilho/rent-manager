@@ -12,36 +12,27 @@
     </v-card-text>
   </v-card> -->
 
-
   <div class=" ">
-
+  
+    <!-- v-model="visible" -->
     <v-snackbar
       v-model="visible"
-      :color="typeColor"
+      :color="notificationType"
       variant="elevated"
       location="top"
-      >
-      <!-- <div class="text-caption">Erro</div>  -->
-      <div class="text-subtitle-1">
-        <!-- <v-icon
-          start
-          icon="error"
-        ></v-icon> -->
-        {{ message }}
+      max-height="100%"
+      :vertical="messageLines.length > 1"
+    >
+      <div v-if="messageLines.length > 1">
+        <div v-for="(line, i) in messageLines">
+          <div v-if="i == 0" class="text-subtitle-1">{{i+''+line}}</div>
+          <p v-else>{{i+''+line}}</p>
+        </div>
       </div>
-      <!-- <p class="text-body-1">This is a snackbar measdasddsdsassage</p> 
-      <div class="text-subtitle-2">This is a snackbar message</div>  -->
-      <!-- <v-row>
-        <v-col cols="2">
-          <div class="text-body-1">Erro</div>
-          <div class="text-body-2">Erro</div>
-        </v-col>
-        <v-col cols="10">
-          
-          <div class="text-body-2">This is a snackbar message</div>
-        </v-col>
-      </v-row> -->
-      <!-- {{ message }} -->
+      <div v-else>
+        <div class="text-subtitle-1">{{messageLines[0]}}</div>
+      </div>
+
       <template v-slot:actions>
         <v-btn
           variant="text"
@@ -58,12 +49,24 @@
 
   export default {
     props: {
-      message: String,
-      typeColor: String,
+      message: Array<String>,
+      notificationType: String,
     },
+
     data: () => ({
       visible: true,
     }),
+
+    computed: {
+      messageLines():Array<String> {
+        if (Array.isArray(this.message)) {
+          return this.message;
+        } else {
+          return [this.message || ''];
+        }
+      }
+    },
+
     methods:{
       closeNotification() {
         this.$emit("close");
