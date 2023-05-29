@@ -29,6 +29,13 @@
         >
         </notification>
 
+        <!-- LOADING -->
+        <loading
+          v-if="loadingVisible"
+          :timeout="loadingTimeout"
+        >
+        </loading>
+
         <!-- DEBUG -->
         <v-dialog v-model="debugDialogVisible" width="90%">
           <v-card>
@@ -55,12 +62,20 @@
 
 <script lang="ts" >
   import Notification from '@/components/Notification.vue';
+  import Loading from '@/components/Loading.vue';
   import RightMenu from '@/components/RightMenu.vue'
 
   type messageType = 'success' | 'info' | 'warning' | 'error' | 'debug';
 
   export default {
+    components: {
+      Notification,
+      RightMenu,
+      Loading,
+    },
     data: () => ({
+      loadingVisible: false,
+      loadingTimeout: 1000,
       notificationVisible: false,
       notificationType: '',
       notificationMessage: <string[]> [],
@@ -69,25 +84,34 @@
       count: 0,
       menuLinks: [
         { name: "Alugueis", link: "/rents", icon:"mdi-currency-usd"},
-        { name: "Inquilinos", link: "/tenants", icon:"mdi-account-box" },
         { name: "Imóveis", link: "/properties", icon:"mdi-home-city" },
+        { name: "Inquilinos", link: "/tenants", icon:"mdi-account-box" },
       ],
       rail: false,
     }),
     provide() {
       return {
-        debugMode: false,
-        showNotification: this.showNotification
+        debugMode: true,
+        showLoading: this.showLoading,
+        showNotification: this.showNotification,
       }
     },
     methods: {
+      showLoading(visible: boolean, timeout: number) {
+        this.loadingVisible = visible;
+        if (!timeout || timeout < 0) {
+          this.loadingTimeout = 0;
+        } else {
+          this.loadingTimeout = timeout;
+        }
+      },
       showNotification(type: messageType, message: string | string[] | Error) {
         let messageContent = [];
         if (this.isError(message)) {
           messageContent = this.getTextFromError(message);
         } else {
           if (!Array.isArray(message)) {
-            message = [message];
+            message = [`${message}`];
           }
           messageContent = message;
         }
@@ -130,9 +154,6 @@
         this.count++;
       }
     },
-    components: { 
-      Notification,
-      RightMenu,
-    }
+
   }
 </script>
