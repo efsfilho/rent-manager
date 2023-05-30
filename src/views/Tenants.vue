@@ -3,51 +3,38 @@
     <v-card-title>Inquilinos</v-card-title>
 
     <v-card-text>
+
+      <!-- TOP BUTTONS -->
       <v-card-actions>
+        <!-- DEBUG -->
         <v-btn v-if="debugMode" class="mb-2" variant="tonal" @click="getTenants">
           Update
         </v-btn>
+        <!-- DEBUG -->
+
         <v-spacer></v-spacer>
-        <v-btn class="mb-2" @click="addTenant">
+        <v-btn class="mb-2" @click="openTenantForm">
           Adicionar
         </v-btn>
       </v-card-actions>
 
-    
       <v-expansion-panels>
         <v-expansion-panel
-          v-for="t in tenantStore.getTenants"
-          :key="t.id"
+          v-for="tenant in tenantsStore.getTenants"
+          :key="tenant.id"
         >
-        <!-- <v-expansion-panel
-          v-for="t in tenants"
-          :key="t.id"
-        > -->
-          <!-- text="Lorem ipsum dolor dsit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." -->
           <v-expansion-panel-title>
             <template v-slot:default="{ expanded }">
               <v-row no-gutters>
                 <v-col cols="10" class="d-flex align-center">
-                  <span v-if="!expanded" :key="t.id">
-                    {{ t.name }}
+                  <span v-if="!expanded" :key="tenant.id">
+                    {{ tenant.name }}
                     <!-- {{ 'salkjdfhslfjksajhlkasjflkasjflksajflksjaflksjasldkjaslkdj' }} -->
                   </span>
-                <!-- </v-col>
-                <v-col cols="4" class="d-flex align-center"> -->
-                  <!-- v-if="t.property_id != 0" -->
-                  <v-chip
-                    v-if="t.property"
-                    class="mx-4"
-                    size="small"
-                    color="primary"
-                    label
-                  >
-                    <v-icon start icon="mdi-home-city-outline"></v-icon>
-                    {{ t.property.name }}
-                  </v-chip>
+
                 </v-col>
                 <v-col class="d-flex align-center">
-                  <v-btn v-if="debugMode" @click="deleteFromList($event, t.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
+                  <v-btn v-if="debugMode" @click="deleteFromList($event, tenant.id)" size="x-small" class="py-0 my-0 d-flex justify-start" variant="tonal">
                     delete
                   </v-btn>
                 </v-col>
@@ -63,7 +50,7 @@
                 <v-col cols="12">
                   <v-text-field
                     label="Nome"
-                    :model-value="t.name"
+                    :model-value="tenant.name"
                     variant="outlined"
                     readonly
                   ></v-text-field>
@@ -76,7 +63,7 @@
                 <v-col cols="12" sm="4">
                   <v-text-field
                     label="CPF"
-                    :model-value="applyMask(t.cpf, '###.###.###-##')"
+                    :model-value="applyMask(tenant.cpf, '###.###.###-##')"
                     variant="outlined"
                     readonly
                   ></v-text-field>
@@ -86,7 +73,7 @@
                 <v-col cols="12" sm="4">
                   <v-text-field
                     label="RG"
-                    :model-value="t.rg"
+                    :model-value="tenant.rg"
                     variant="outlined"
                     readonly
                   ></v-text-field>
@@ -96,7 +83,7 @@
                 <v-col cols="12" sm="4">
                   <v-text-field
                     label="Data de Nascimento"
-                    :model-value="getDate(t.birth_date)"
+                    :model-value="getDate(tenant.birth_date)"
                     variant="outlined"
                     readonly
                   ></v-text-field>
@@ -106,7 +93,7 @@
 
               <v-row no-gutters>
                 <v-col cols="12" class="d-flex justify-end">
-                  <v-btn variant="text" @click="editTenant(t.id)">
+                  <v-btn variant="text" @click="openTenantForm(tenant.id)">
                     Editar
                   </v-btn>
                 </v-col>
@@ -121,10 +108,10 @@
       v-if="showTenantDialog"
       :tenant-id="selectedTenant"
       @close="() => {
-        selectedTenant = null;
+        selectedTenant = '';
         showTenantDialog = false;
+        getTenants();
       }"
-      @edit-tenant="editTenant"
     ></tenant-form>
 
   </v-card>
@@ -136,38 +123,38 @@
   import moment from 'moment';
   import TenantForm from '@/components/TenantForm.vue';
   import { Tenant, useTenantStore } from '@/store/tenants';
-
-  type Selected = number | null;
   
   export default {
+
     components: {
       TenantForm,
     },
+  
     setup(){
-      // injected var/functions provided by layouts/Home.vue
-      const debugMode = <Boolean> inject('debugMode');
-      const showNotification = <Function> inject('showNotification');
-      const applyMask = Utils.applyMask;
-      const showShortName = Utils.showShortName;
       return {
-        debugMode,
-        showNotification,
-        applyMask,
-        showShortName
+        // injected var/functions provided by layouts/Home.vue
+        debugMode: <Boolean> inject('debugMode'),
+        showLoading: <Function> inject('showLoading'),
+        showNotification: <Function> inject('showNotification'),
+        applyMask: Utils.applyMask
       }
     },
+  
     data: () => ({
-      tenantStore: useTenantStore(),
+      tenantsStore: useTenantStore(),
       showTenantDialog: false,
-      selectedTenant: <Selected> null
+      selectedTenant: <string> ''
     }),
+
     created() {
       this.getTenants();
     },
+
     methods: {
       async getTenants() {
+        await this.showLoading(true);
         try {
-          await this.tenantStore.get();
+          await this.tenantsStore.updateStore();
         } catch (err) {
           if (this.debugMode) {
             console.log(err);
@@ -176,32 +163,24 @@
 
           this.showNotification('error', 'Não foi possível atualizar a tela.');
         }
+        this.showLoading(false);
       },
-      addTenant() {
+
+      // Used for edit and add
+      openTenantForm(tenantId: string) {
         this.showTenantDialog = true;
+        this.selectedTenant = tenantId || '';
       },
-      deleteFromList(e:any, id:number) {    
-        e.stopPropagation()        
-        let tenant = this.tenantStore.getTenantById(id) as Tenant;
-        this.tenantStore.delete(tenant);
-      },
-      async editTenant(tenantId: number) {
-        this.showTenantDialog = true;
-        this.selectedTenant = tenantId;
+
+      deleteFromList(e:any, id:string) {
+        e.stopPropagation();
+        let tenant = this.tenantsStore.getTenantById(id) as Tenant;
+        this.tenantsStore.delete(tenant);
       },
 
       getDate(uTime: number) {
         return moment(uTime, 'X').format('DD/MM/YYYY');
       },
-      // applyMask(value: string, mask: string) {
-      //   return Utils.applyMask(value, mask);
-      // },
-
     },
-    watch: {
-      // form() {
-      //   console.log('form: ', this.showTenantDialog);
-      // }
-    }
   }
 </script>

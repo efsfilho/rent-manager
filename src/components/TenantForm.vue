@@ -8,9 +8,11 @@
       <v-col cols="12" xs="12" sm="8" md="6" lg="6" xl="4">
         <v-form ref="formInput">
           <v-card>
+
             <v-card-title class="ml-5 mt-5">
-              <span class="text-h5">{{tenantId == null ? "Novo" : "Editar"}} Inquilino</span>
+              <span class="text-h5">{{isEditing ? "Editar" : "Novo"}} Inquilino</span>
             </v-card-title>
+
             <v-card-text>
               <v-container>
                 <v-row>
@@ -63,19 +65,9 @@
                     ></v-text-field>
                   </v-col>
 
-                  <!-- <v-col
-                    cols="12"
-                    sm="6"
-                  >
-                    <v-autocomplete
-                      :items="['Skiing', 'Ice hockey', 'Soccer', 'Basketball', 'Hockey', 'Reading', 'Writing', 'Coding', 'Basejump']"
-                      label="Interests"
-                      multiple
-                    ></v-autocomplete>
-                  </v-col> -->
                 </v-row>
               </v-container>
-              <small>*indicates required field</small>
+              <small>*indica campos obrigatórios</small>
             </v-card-text>
 
             <v-card-actions>
@@ -111,46 +103,10 @@
               </v-btn>
             </v-card-actions>
           </v-card>
-
-          <v-dialog
-            v-model="loadingDialog"
-            :scrim="false"
-            persistent
-            width="200"
-          >
-            <v-card
-              
-            >
-              <v-card-title class="mx-5 my-2">
-                <span>Aguarde</span>
-                <!-- Aguarde -->
-              </v-card-title>
-              <v-card-text>
-
-                <v-progress-linear
-                  color="grey"
-                  indeterminate
-                  rounded
-                  height="5"
-                  class="mb-3"
-                ></v-progress-linear>
-                <!-- <div class="text-center">
-                  <v-progress-circular
-                    :width="4"
-                    :size="70"
-                    color="red"
-                    indeterminate
-                  ></v-progress-circular>
-                </div> -->
-              </v-card-text>
-            </v-card>
-          </v-dialog>
-
         </v-form>
       </v-col>
     </v-row>
   </v-dialog>
-  
 </template>
 
 <script lang="ts">
@@ -161,64 +117,63 @@
   import moment from 'moment';
   
   export default {
-    // props: [ "form" ],
-    props: [ 'update','tenantId' ],
-    setup(){
-      const showNotification = <Function> inject('showNotification')
-      return {
-        showNotification
+
+    props: {
+      tenantId: {
+        type: String,
+        default: '',
       }
     },
+
+    setup(){
+      return {
+        // injected var/functions provided by layouts/Home.vue
+        debugMode: <Boolean> inject('debugMode'),
+        showLoading: <Function> inject('showLoading'),
+        showNotification: <Function> inject('showNotification'),
+      }
+    },
+
     data: () => ({
       tenantStore: useTenantStore(),
-      loadingDialog: false,
-      tenant: {
-        name: '',
-        cpf: '',
-        rg: '',
-        birth_date: 0
-      } as Tenant,
+      tenant: <Tenant>{},
       cpfInput: '',
       birthDateInput: '',
       validator: new TenantValidator()
     }),
+
     created() {
-      if(this.tenantId !== null) {
-        let tenant = this.tenantStore
-          .getTenantById(this.tenantId) as Tenant;
-        this.tenant = {...tenant};
+      if(this.isEditing) {
+        let tenant = this.tenantStore.getTenantById(this.tenantId) as Tenant;
+        this.tenant = structuredClone(tenant);
         this.cpfInput = this.tenant.cpf;
         this.formatCpf();        
         this.birthDateInput = moment(tenant.birth_date, 'X').format('DD/MM/YYYY');
       } else {
-        this.tenant.name = 'TESTE';
-        // this.tenant.cpf = '';
-        this.tenant.rg = '48138618';
-        this.tenant.birth_date = 0;
 
-        this.cpfInput = '092.421.600-08'
-        this.birthDateInput = '12/12/1991';
+        // DEBUG
+        if (this.debugMode) {
+          this.tenant.name = 'TESTE';
+          this.tenant.rg = '12345611';
+          this.tenant.birth_date = 0;
+          this.cpfInput = '092.421.600-08'
+          this.birthDateInput = '12/12/1991';
+        }
       }
     },
+
     computed: {
-      isEditing() {
-        return this.tenantId !== undefined && this.tenantId !== null;
+      isEditing() {        
+        return Utils.isValidObjectId(this.tenantId);
+      },
+    },
+
+    watch: {
+      cpfInput() {
+        this.tenant.cpf = this.cpfInput.replace(/\.|\-/g, "");
       },
 
-      // birthDateTimestamp() {
-      //   let date = moment(this.tenant.birthDate, "DD/MM/YYYY", true);
-      //   if (date.isValid()) {
-      //     return date.unix();
-      //     // return 1;
-      //   } else {
-      //     return 0;
-      //   }
-      // }
-    },
-    watch: {
-      cpfInput(val: string) {
-        this.tenant.cpf = this.cpfInput.replace(/\.|\-/g, "")
-      },
+      // convert DD/MM/YYYY format to timestamp seconds
       birthDateInput(val: string) {
         let date = moment(val, 'DD/MM/YYYY', true);
 
@@ -229,41 +184,60 @@
         }
       }
     },
+
     methods: {
       async save() {
         const { valid } = await (this.$refs.formInput as any).validate();
+
         if (valid) {
+          this.showLoading(true);
+
           try {
-            this.loadingDialog = true;
-            
+            let tenant = structuredClone(this.tenant);
+
             if(this.isEditing) {
-              await this.tenantStore.update({...this.tenant});
+              await this.tenantStore.update(tenant);
             } else {
-              await this.tenantStore.add({...this.tenant});
+              await this.tenantStore.add(tenant);
             }
-            this.showNotification('success', 'Inquilino salvo com sucesso!')
+            this.showNotification('success', 'Inquilino salvo com sucesso!');
             this.$emit('close');
           } catch (err) {
-            // console.log(err)
-          this.loadingDialog = false;
-          this.showNotification('error', 'Não foi possível salvar o inquilino.')
-          }          
+            if (this.debugMode) {
+              console.log(err);
+              this.showNotification('debug', err);
+            }
+
+          this.showLoading(false);
+          this.showNotification('error', 'Não foi possível salvar o inquilino.');
+          }
+
+          this.showLoading(false);
         }
       },
 
       async remove() {
-        this.loadingDialog = true;
+        this.showLoading(true);
+
         try {
-          if(this.tenantId !== null) {
-            await this.tenantStore.delete({...this.tenant});          
+
+          if(this.isEditing) {
+            await this.tenantStore.delete({...this.tenant});
+            this.showNotification('success', 'Inquilino excluído com sucesso!');
+            this.$emit('close');
           }
-          this.showNotification('success', 'Inquilino excluído com sucesso!')
-          this.$emit('close');
+
         } catch (err) {
-          // console.log(err)
-          this.loadingDialog = false;
-          this.showNotification('error', 'Não foi possível excluir o inquilino.')          
+
+          if (this.debugMode) {
+            console.log(err);
+            this.showNotification('debug', err);
+          }
+
+          this.showNotification('error', 'Não foi possível excluir o inquilino.');
         }
+
+        this.showLoading(false);
       },
 
       
@@ -282,8 +256,7 @@
 
       formatCpf() {
         let cpf = this.cpfInput.slice(0,13);
-        this.cpfInput = Utils.applyMask(cpf, '###.###.###-##')
-        // this.tenant.cpf = Utils.applyMask(cpf, '##.##)##-#$@##')
+        this.cpfInput = Utils.applyMask(cpf, '###.###.###-##');
       },
 
       formatRg() {
