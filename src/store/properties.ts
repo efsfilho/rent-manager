@@ -1,42 +1,32 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { Tenant } from './tenants';
+
+const url = 'http://localhost:1323'
 
 export interface Property {
-  id: number,
+  id: string,
+  active: boolean,
   name: string,
-  address: string
+  address: string,
+  rent_id: string,
+  tenant: Tenant
 }
 
 export interface Properties extends Array<Property>{}
-// let idcount = 2;
-const url = 'http://10.0.0.11:1323'
+
 export const usePropertiesStore = defineStore('propertiesStore', {
   state: () => ({
     rawProperties: <Properties> []
-    // rawProperties: <Properties> [
-    //   {
-    //     id: 0,
-    //     name: "Casa 1",
-    //     address: "Rua 1"
-    //   },{
-    //     id: 1,
-    //     name: "Casa 2",
-    //     address: "Rua 2"
-    //   },{
-    //     id: 2,
-    //     name: "Casa 3",
-    //     address: "Rua 3"
-    //   }
-    // ]
   }),
   
   getters: {
     properties(state) {
-      return state.rawProperties
+      return state.rawProperties;
     },
 
     getPropertyById(state) {
-      const filter = (id: number) => {
+      const filter = (id: string) => {
         return state.rawProperties.find((item) => item.id === id);
       }
       return filter;
@@ -46,10 +36,10 @@ export const usePropertiesStore = defineStore('propertiesStore', {
   actions: {
     async add(content: Property) {
       await axios.post(`${url}/properties`, content);
-      await this.get();
+      await this.updateStore();
     },
 
-    async get() {
+    async updateStore() {
       this.rawProperties = [];
       const properties = await axios.get(`${url}/properties`);
       if (properties.data) {
@@ -69,13 +59,13 @@ export const usePropertiesStore = defineStore('propertiesStore', {
 
     async delete(content: Property) {
       const getIndex = (item: Property) => {
-        return item.id === content.id
+        return item.id === content.id;
       }
 
       const i = this.properties.findIndex(getIndex);
-      const { id } = content
+      const { id } = content;
       await axios.delete(`${url}/properties/${id}`);
-      await this.get();
+      await this.updateStore();
     }
   }
 });

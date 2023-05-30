@@ -36,19 +36,37 @@ export class Utils {
     return charArray.join('');
   }
 
-  static showShortName(name: string, limit: number) {
-    if (!limit) {
-      limit = 10;
-    }
+  // static showShortName(name: string, limit: number) {
+  //   if (!limit) {
+  //     limit = 10;
+  //   }
 
-    if (!name && name === '') {
-      return ''
-    }
+  //   if (!name && name === '') {
+  //     return ''
+  //   }
 
-    if (name.length >= limit) {
-      return `${name.slice(0, limit)}...`;
-    } else {
-      return name;
+  //   if (name.length >= limit) {
+  //     return `${name.slice(0, limit)}...`;
+  //   } else {
+  //     return name;
+  //   }
+  // }
+
+  /**
+   * Returns true if hex string is a valid objectID from mongodb go driver
+   * @param hex Hexadecimal string
+   */
+  static isValidObjectId(hex: string): boolean {
+    try {
+      // https://github.com/mongodb/mongo-go-driver/blob/master/bson/primitive/objectid.go
+      const n = Number(`0x${hex}`);
+      const isString = typeof hex === 'string';
+      const is24Long = hex.length === 24;
+      const isNumber = !Number.isNaN(n) && n > 0;
+
+      return isString && is24Long && isNumber
+    } catch (error) {
+      return false;
     }
   }
 }
