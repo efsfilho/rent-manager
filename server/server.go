@@ -1,82 +1,111 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"fmt"
+	"database/sql"
+	"flag"
+
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
 )
 
-type DataBase struct {
-	client *mongo.Client
-}
+var db *sql.DB
 
-func (d *DataBase) connect() {
-	mongodbURI := os.Getenv("MONGODB_URI")
-	if mongodbURI == "" {
-		err := errors.New("MONGODB_URI variable is not defined")
-		// logger(err)
-		fmt.Println(err)
-		panic(err)
-	}
-
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(mongodbURI).SetServerAPIOptions(serverAPI)
-
-	var err error
-	d.client, err = mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		// logger(err)
-		fmt.Println(err)
-		panic(err)
-	}
-}
-
-// Should be defered
-func (d *DataBase) disconnect() {
-	err := d.client.Disconnect(context.TODO())
-	if err != nil {
-		// logger(err)
-		fmt.Println(err)
-		panic(err)
-	}
-}
-
-var db DataBase
+// Same layout as sqlite strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
+var sqliteLayout string = "2006-01-02 15:04:05.000"
 
 func main() {
-	// customLogger = setLog(zerolog.DebugLevel)
-	// setLog(zerolog.DebugLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: sqliteLayout})
+	debug := flag.Bool("debug", false, "sets log level to debug")
+
+	flag.Parse()
+
+	// Default level for this example is info, unless debug flag is present
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if *debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 
 	// Load env variables from file
 	err := godotenv.Load()
 	if err != nil {
-		// logger(err)
-		fmt.Println(err)
+		log.Error().Stack().Err(err).Msg("Error while reading .env file")
+	}
+
+	// Data base init
+	dbFile := "./rentmem.db"
+	os.Remove(dbFile)
+	db, err = sql.Open("sqlite3", "./rentmem.db")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't open sqlite file")
+	}
+	defer db.Close()
+
+	err = initDataBase()
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("initDataBase error")
 	}
 
 	// Start server
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
-	// e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-	// 	// AllowOrigins: []string{"http://localhost:3000", "http://10.0.0.11:3000"},
-	// 	// AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-	// 	// AllowMethods: []string{http.MethodPost, http.MethodGet, http.MethodPut, http.MethodDelete},
-	// 	AllowOrigins: []string{"*"},
-	// 	AllowHeaders: []string{"*"},
-	// 	AllowMethods: []string{"*"},
-	// }))
 
-	// Requests logs
-	e.Use(middleware.RequestLoggerWithConfig(RequestLoggerConfig))
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogMethod:       true,
+		LogStatus:       true,
+		LogURI:          true,
+		LogURIPath:      true,
+		LogProtocol:     true,
+		LogResponseSize: true,
+		LogRemoteIP:     true,
+		LogUserAgent:    true,
+		LogFormValues:   []string{},
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			if v.Status >= 400 {
+				log.Error().
+					Int("status", v.Status).
+					Str("method", v.Method).
+					Str("uri", v.URI).
+					Int("resp_size", int(v.ResponseSize)).
+					Msg("")
+			} else {
+				log.Info().
+					Int("status", v.Status).
+					Str("method", v.Method).
+					Str("uri", v.URI).
+					Int("resp_size", int(v.ResponseSize)).
+					Msg("")
+			}
+
+			return nil
+		},
+		// LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+		// 	// msg := fmt.Sprintf(" \"%-6s %v %v\" %v %v %v ",
+		// 	msg := fmt.Sprintf(" \"%v %v %v\" %v %v %v ",
+		// 		v.Method,
+		// 		v.URI,
+		// 		v.Protocol,
+		// 		v.Status,
+		// 		v.ResponseSize,
+		// 		v.UserAgent)
+		// 	log.Info().Msg(msg)
+		// 	return nil
+		// },
+	}))
 
 	// Routes
+	e.GET("/cue", getCue)
+	e.POST("/cue", postCue)
+	e.PUT("/cue/:id", putCue)
+	e.DELETE("/cue/:id", delCue)
 	// e.POST("/tenants", postTenant)
 	// e.GET("/tenants", getTenant)
 	// e.PUT("/tenants/:id", putTenant)
@@ -87,14 +116,7 @@ func main() {
 	// e.PUT("/properties/:id", putProperty)
 	// e.DELETE("/properties/:id", deleteProperty)
 
-	e.POST("/rents", postRent)
-
-	db = DataBase{}
-	db.connect()
-
-	defer db.disconnect()
-
-	// logger("Pinged your deployment. You successfully connected to MongoDB!")
+	// e.POST("/rents", postRent)
 
 	port := os.Getenv("PORT")
 	e.Logger.Fatal(e.Start(port))

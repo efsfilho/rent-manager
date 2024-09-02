@@ -1,17 +1,16 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"reflect"
+	"database/sql"
+	"strconv"
+	"strings"
+	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
-	"go.mongodb.org/mongo-driver/bson"
+
+	"github.com/rs/zerolog/log"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Operation int8
@@ -23,12 +22,20 @@ const (
 )
 
 type Log struct {
-	Operation       Operation
-	Log             string
-	NewValue        string
-	OldValue        string
-	DateOfOperation int64
+	Operation Operation
+	Log       string
+	NewValue  string
+	OldValue  string
+	date      time.Time
 	// User            int32
+}
+
+type Cue struct {
+	Id     int64 `json:"id"`
+	active bool
+	Done   bool `json:"done"`
+	date   time.Time
+	Name   string `json:"name"`
 }
 
 // REMOVE
@@ -132,256 +139,274 @@ func isTenantValid(tenant Tenant) (bool, string) {
 	return true, ""
 }
 
-func saveDocument(ctx context.Context, doc interface{}) (primitive.ObjectID, error) {
-
-	config, err := configs.getDocConfig(doc)
-
+func dbExec(query string, values ...any) (sql.Result, error) {
+	stmt, err := db.Prepare(query)
 	if err != nil {
-		logger(err)
-		return primitive.NilObjectID, err
+		return nil, errors.Wrap(err, "")
 	}
-
-	dataBase := db.client.Database(config.dataBase)
-	coll := dataBase.Collection(config.collection)
-
-	if ctx == nil {
-		ctx = context.TODO()
-	}
-
-	result, err := coll.InsertOne(ctx, doc)
-
-	if err != nil {
-		logger(err)
-		return primitive.NilObjectID, err
-	}
-	logger(fmt.Sprintf("Inserted %v document with _id: %v", config.documentType, result.InsertedID))
-
-	objectId, isObjectId := result.InsertedID.(primitive.ObjectID)
-	if isObjectId {
-		return objectId, nil
-	}
-
-	return primitive.NilObjectID, nil
+	defer stmt.Close()
+	return stmt.Exec(values...)
 }
 
-// Based on the type(doc interface{}), lists all documents of its collection
-func listDocuments(doc interface{}, objectId primitive.ObjectID, filter interface{}) error {
-	// if reflect.ValueOf(doc).Kind() != reflect.Ptr {
-	// 	err := errors.New("a lista de documentos(doc interface{}) deve ser um ponteiro")
-	// 	logger(err)
-	// 	return err
-	// }
-
-	// docReference, isReference := doc.(*[]Tenant)
-	// if !isReference {
-	// 	return fmt.Errorf("not Refff")
-	// }
-	// fmt.Println("doc", doc)
-	// fmt.Println("doc", docReference)
-	config, err := configs.getDocConfig(doc)
-	if err != nil {
-		logger(err)
-		return err
+func initDataBase() error {
+	qry := `
+		CREATE TABLE IF NOT EXISTS cue (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			active BOOLEAN DEFAULT TRUE,
+			done BOOLEAN DEFAULT FALSE,
+			name TEXT NOT NULL,
+			date NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'))
+		)`
+	if _, err := db.Exec(qry); err != nil {
+		return errors.Wrap(err, "cue table not created")
 	}
 
-	dataBase := db.client.Database(config.dataBase)
-	coll := dataBase.Collection(config.collection)
+	qry = `
+		CREATE TABLE IF NOT EXISTS log (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			date NUMERIC,
+			log TEXT
+		)`
+	if _, err := db.Exec(qry); err != nil {
+		return errors.Wrap(err, "log not created")
+	}
 
-	findOptions := options.Find()
-	// findOptions.SetLimit(limit)
-	// filter := bson.D{{Key: "rent_id", Value: "primitive.NilObjectID"}}
-	if objectId != primitive.NilObjectID {
-		filter := bson.M{"_id": objectId}
-		err := coll.FindOne(context.TODO(), filter).Decode(doc)
-		// fmt.Println("id", objectId, result)
-		// err = result.Err()
-		// result.Decode(doc)
-		// .Decode(&doc)
+	qry = `
+	CREATE TABLE IF NOT EXISTS log_cue (
+		id integer not null primary key AUTOINCREMENT,
+		row_id integer not null,
+		old_active BOOLEAN,
+		new_active BOOLEAN,
+		old_name text not null,
+		new_name text not null,
+		old_date NUMERIC not null,
+		new_date NUMERIC not null,
+		change_type text not null,
+		created_at NUMERIC not null
+	);
+	
+`
+	if _, err := db.Exec(qry); err != nil {
+		return errors.Wrap(err, "log_cue not created")
+	}
+	qry = `
+	CREATE TRIGGER log_cue_after_update 
+	AFTER UPDATE ON cue
+		WHEN old.name <> new.name
+			OR old.active <> new.active
+			OR old.date <> new.date
+	BEGIN
+		insert into log_cue (
+			row_id,
+			old_active,
+			new_active,
+			old_name,
+			new_name,
+			old_date,
+			new_date,
+			change_type,
+			created_at
+		) 
+		values (
+			old.id,
+			old.active,
+			new.active,
+			old.name,
+			new.name,
+			old.date,
+			new.date,
+			'UPDATE',
+			strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
+		);
+	END;
+	`
+	if _, err := db.Exec(qry); err != nil {
+		return errors.Wrap(err, "trigger not created")
+	}
+
+	stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	return nil
+}
+
+func saveLog() {
+	// CREATE TABLE IF NOT EXISTS log (
+	// 	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	//  table TEXT,
+	//  rowId INTEGER
+	// 	date NUMERIC,
+	// 	log TEXT
+	// )`
+	qry := "INSERT INTO log () VALUES ();"
+	if _, err := db.Exec(qry); err != nil {
+		log.Error().Stack().Err(err).Msg("log error")
+		// return err
+	}
+}
+
+func listCue() ([]Cue, error) {
+	var cues []Cue = []Cue{}
+	rows, err := db.Query("SELECT id, active, done, name, date FROM cue WHERE active = TRUE;")
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		cue := Cue{}
+		cueDate := ""
+		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Name), &(cueDate))
 		if err != nil {
-			// logger(err)
-			return err
+			return nil, errors.Wrap(err, "")
 		}
-		// if err != nil {
-		// 	if err == mongo.ErrNoDocuments {
-		// 		// This error means your query did not match any documents.
-		// 		fmt.Println("no document")
-		// 		return err
-		// 	}
-		// 	// panic(err)
-		// }
-	} else {
-		isPointer := reflect.ValueOf(doc).Kind() == reflect.Ptr
-		isSlice := reflect.ValueOf(doc).Elem().Kind() == reflect.Slice
-		if isPointer && !isSlice {
-			err := fmt.Errorf("doc should point to a slice")
-			logger(err)
-			return err
+		if cue.date, err = time.Parse(sqliteLayout, cueDate); err != nil {
+			return nil, errors.Wrap(err, "")
 		}
-
-		if filter == nil {
-			filter = bson.D{{}}
-		}
-		fmt.Println("filter ", filter)
-		result, err := coll.Find(context.TODO(), filter, findOptions)
-		if err != nil {
-			return err
-		}
-		// result.Decode(&doc)
-		err = result.All(context.TODO(), doc)
-		if err != nil {
-			return err
-		}
+		cues = append(cues, cue)
 	}
 
-	// if err != nil {
-	// 	logger(err)
-	// 	return err
-	// }
+	return cues, nil
+}
 
-	// if err = result.All(context.TODO(), doc); err != nil {
-	// 	logger(err)
-	// 	return err
-	// }
+func createCue(cue Cue) error {
+	qry := "INSERT INTO cue (active, name, date) VALUES (TRUE, ?, ?)"
+	r, err := dbExec(qry, cue.Name, time.Now().Format(sqliteLayout))
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	id, err := r.LastInsertId()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Info().Msgf("new cue. id: %d", id)
 
 	return nil
 }
 
-func updateDocument(objectId primitive.ObjectID, doc interface{}) (int64, error) {
+func updateCue(id string, newValues map[string]interface{}) error {
+	var qrySetCol []string
+	var qrySetVal []any
+	var fields []string = []string{"done", "name"}
+	log.Debug().Interface("fields_allowed", fields).Msg("")
 
-	config, err := configs.getDocConfig(doc)
-	if err != nil {
-		logger(err)
-		return 0, err
+	if _, err := strconv.Atoi(id); err != nil {
+		log.Error().Msgf("id value: %v", id)
+		return errors.Wrap(err, "id not valid")
 	}
 
-	filter := bson.M{"_id": objectId}
-	// update := bson.A{"$set", doc}
-	update := bson.D{{"$set", doc}}
-
-	dataBase := db.client.Database(config.dataBase)
-	coll := dataBase.Collection(config.collection)
-	result, err := coll.UpdateOne(context.TODO(), filter, update)
-
-	if err != nil {
-		logger(err)
-		return 0, err
-	}
-
-	return result.ModifiedCount, nil
-}
-
-func removeDocument(objectId primitive.ObjectID, doc interface{}) (int64, error) {
-
-	config, err := configs.getDocConfig(doc)
-	if err != nil {
-		logger(err)
-		return 0, err
-	}
-
-	filter := bson.M{"_id": objectId}
-	dataBase := db.client.Database(config.dataBase)
-	coll := dataBase.Collection(config.collection)
-	result, err := coll.DeleteOne(context.TODO(), filter)
-
-	if err != nil {
-		logger(err)
-		return 0, err
-	}
-	return result.DeletedCount, nil
-}
-
-func saveTenant(tenant Tenant) error {
-
-	// Checks if there is property x tenant relationship
-	// isValidId := primitive.IsValidObjectID(tenant.PropertyId.Hex())
-	// if isValidId && !tenant.PropertyId.IsZero() {
-
-	// 	var properties Property = Property{}
-	// 	err := listDocuments(&properties, tenant.PropertyId)
-
-	// 	// If no document is found, the returned error is going to be mongo.ErrNoDocuments
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	tenant.Active = true
-	_, err := saveDocument(nil, tenant)
-
-	if err != nil {
-		logger(err)
-		return err
-	}
-	return nil
-}
-
-func saveProperty(property Property) error {
-
-	// Checks if there is property x tenant relationship
-	// isValidId := primitive.IsValidObjectID(property.TenantId.Hex())
-	// if isValidId && !property.TenantId.IsZero() {
-
-	// 	var tenant Tenant = Tenant{}
-	// 	err := listDocuments(&tenant, property.TenantId)
-
-	// 	// If no document is found, the returned error is going to be mongo.ErrNoDocuments
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	property.Active = true
-	_, err := saveDocument(nil, property)
-
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			logger(err)
-			// TODO check err
-			return echo.NewHTTPError(http.StatusUnprocessableEntity, "Inquilino não encontrado!")
-		} else {
-			logger(err)
-			return err
+	for _, v := range fields {
+		if i, ok := newValues[v]; ok {
+			qrySetCol = append(qrySetCol, v+" = ?")
+			qrySetVal = append(qrySetVal, i)
 		}
+	}
+	// last value used at where clause
+	qrySetVal = append(qrySetVal, id)
+
+	tx, err := db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	qry := "UPDATE cue SET " + strings.Join(qrySetCol, ", ") + " WHERE id = ? AND active = TRUE;"
+	stmt, err := tx.Prepare(qry)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer stmt.Close()
+	log.Debug().Stack().Str("query_prepared", qry).Msg("")
+	log.Debug().Interface("query_values", qrySetVal).Msg("")
+
+	res, err := stmt.Exec(qrySetVal...)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	count, err := res.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	if count != 1 {
+		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
+		if err = tx.Rollback(); err != nil {
+			return errors.Wrap(err, "")
+		}
+
+		log.Info().Msg("Rollback executed.")
+		return errors.New("an error occur while updating")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "")
 	}
 
 	return nil
 }
 
-func listProperties() ([]Property, error) {
-	var properties []Property = []Property{}
-	err := listDocuments(&properties, primitive.NilObjectID, nil)
+func removeCue(id string) error {
+	if _, err := strconv.Atoi(id); err != nil {
+		log.Error().Msgf("id value: %v", id)
+		return errors.Wrap(err, "id not valid")
+	}
 
+	tx, err := db.Begin()
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "")
 	}
 
-	// Fills tenant field if any data is available, otherwise it should be null
-	for i, a := range properties {
-		if !a.RentId.IsZero() {
-			tenant := Tenant{}
-			// Checks if there are any rent (tenant/property relation)
-			err := listDocuments(&tenant, a.RentId, nil)
-			if err != nil {
-				logger(fmt.Sprintf("An error occurred when looking for rent document: %v ", a.RentId.String()))
-				logger(err)
-				break
-			}
-			properties[i].Tenant = &tenant
+	stmt, err := tx.Prepare("UPDATE cue SET active = FALSE WHERE id = ?;")
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	count, err := res.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	log.Info().Msgf("RowsAffected: %v", count)
+	if count != 1 {
+		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
+		if err = tx.Rollback(); err != nil {
+			return errors.Wrap(err, "")
 		}
+		log.Info().Msg("Rollback executed.")
+		return errors.New("an error occur while removing")
 	}
 
-	return properties, nil
-}
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "")
+	}
 
-func saveRent(rent Rent) error {
+	log.Info().Msgf("cue removed. id: %s", id)
 
 	return nil
 }
-
-// func saveLog(op Operation, oldValue string, msg string) {
-
-// 	reg := Log{}
-// 	reg.Operation = op
-
-// 	coll := db.client.Database("srv1140").Collection("logs")
-// 	result, err := coll.InsertOne(context.TODO(), tenant)
-// 	fmt.Println("SS", a)
-// }

@@ -6,7 +6,7 @@ import ProgressSpinner from 'primevue/progressspinner';
 import Dialog from 'primevue/dialog';
 import Fluid from 'primevue/fluid';
 import axios from 'axios';
-import { ref, defineEmits, watch, onMounted, onUnmounted, onBeforeMount,  } from 'vue';
+import { ref, defineEmits, watch, onMounted, onUnmounted, onBeforeMount, computed,  } from 'vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 
 const emit = defineEmits(['close']);
@@ -15,35 +15,51 @@ const visible = ref(true);
 watch(visible, (n) => {
   if (!n) emit('close');
 });
-const blockText = ref(props.block.text);
+const blockId = ref(props.block.id);
+const blockDone = ref(props.block.done);
+const blockName = ref(props.block.name);
 const edit = ref(false);
 
 const queryClient = useQueryClient();
-const { error, isPending, mutate, reset } = useMutation({
-  mutationFn: (newTodo) => axios.put('http://localhost:3000/blocks', newTodo),
+
+const updateFunc = (v) => axios.put('http://localhost:3000/cue/'+blockId.value, { data: v });
+const deleteFunc = (v) => axios.delete('http://localhost:3000/cue/'+blockId.value, v);
+const updateMutation = useMutation({
+  mutationFn: updateFunc,
   onSuccess: () => emit('close'),
   onSettled: () => queryClient.invalidateQueries({ queryKey: ['blocks'] }),
 });
 
+const deleteMutation = useMutation({ mutationFn: deleteFunc });
 const update = () => {
-  mutate({
-    id: props.block.id,
-    date: new Date(),
-    text: blockText.value
+  updateMutation.mutate({
+    id: blockId.value,
+    name: blockName.value,
+  });
+}
+
+const markAsDone = () => {
+  updateMutation.mutate({
+    done: true
   });
 }
 
 const remove = () => {
-  mutate({
-    id: props.block.id,
-    date: new Date(),
-    text: ''
+  deleteMutation.mutate({
+    id: blockId.value,
+  },{
+    onSuccess: () => emit('close'),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['blocks'] }),
   });
 }
 
+const isPending= computed(() => {
+  return updateMutation.isPending.value || deleteMutation.isPending.value
+})
 </script>
 <template>
   <div class="grid justify-items-center">
+    
     <Dialog v-model:visible="visible"  modal header="Edit Profile" :style="{ width: '25rem' }">
       <template #header>
         <div class="inline-flex items-center justify-center gap-2">
@@ -60,21 +76,15 @@ const remove = () => {
             <div class="grid grid-cols-1 gap-4">
               <div v-if="edit" class="col-span-full">
                 <FloatLabel>
-                  <InputText id="new-block"  v-model="blockText"/>
+                  <InputText id="new-block"  v-model="blockName"/>
                   <label for="new-block">Block name</label>
                 </FloatLabel>
               </div>
               <div v-else class="col-span-full">
-                <!-- <div class="h-10 rounded-md outline outline-1 outline-slate-300"> -->
-                  <p class="px-2.5 py-2 text-slate-500">{{ blockText }}</p>
-                <!-- </div> -->
+                <p class="px-2.5 py-2 text-slate-500">{{ blockName }}</p>
               </div>
             </div>
           </Fluid>
-          <!-- <FloatLabel v-else class="w-full">
-            <InputText class="w-full" id="new-block"  v-model="blockText" />
-            <label for="new-block">Block name</label>
-          </FloatLabel> -->
         </div>
       </div>
 
@@ -84,6 +94,7 @@ const remove = () => {
             <Button v-if="edit" label="Delete" severity="secondary" @click="remove()"/>
           </div>
           <div class="flex gap-4">
+            <Button v-if="!edit && !blockDone" label="Close block" severity="success" @click="markAsDone"/>
             <Button v-if="edit" label="Cancel" outlined severity="secondary" @click="edit=false" autofocus />
             <Button v-if="edit" label="Save" outlined severity="secondary" @click="update()"/>
             <Button v-if="!edit" label="Edit" severity="secondary" @click="edit=true"/>

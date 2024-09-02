@@ -9,65 +9,31 @@ import VirtualScroller from 'primevue/virtualscroller';
 import Block from '../components/Block.vue';
 import axios from 'axios';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/vue-query'
-
-// Access QueryClient instance
-// const queryClient = useQueryClient()
-
-// // Query
-// const { isLoading, isError, data, error } = useQuery({
-//   queryKey: ['todos'],
-// //   queryFn: getTodos,
-// });
-
-// // Mutation
-// const mutation = useMutation({
-//   mutationFn: postTodo,
-//   onSuccess: () => {
-//     // Invalidate and refetch
-//     queryClient.invalidateQueries({ queryKey: ['todos'] })
-//   },
-// })
-
-// function onButtonClick() {
-//   mutation.mutate({
-//     id: Date.now(),
-//     title: 'Do Laundry',
-//   })
-// }
-
-// import { ref } from 'vue';
-// const items = ref(Array.from({ length: 100000 }).map((_, i) => `Item #${i}`));
-
 import { ref, onMounted, watch, computed, reactive } from "vue";
 import { ProductService } from '../service/ProductService';
 import EditBlock from '../components/EditBlock.vue';
+import { inject } from 'vue'
 
 onMounted(() => {
-    ProductService.getProducts().then((data) => (products.value = data.slice(0, 12)));
+  ProductService.getProducts().then((data) => (products.value = data.slice(0, 12)));
 });
 
 const products = ref();
 const getSeverity = (product) => {
-    switch (product.inventoryStatus) {
-        case 'INSTOCK':
-            return 'success';
-
-        case 'LOWSTOCK':
-            return 'warning';
-
-        case 'OUTOFSTOCK':
-            return 'danger';
-
-        default:
-            return null;
-    }
+  switch (product.inventoryStatus) {
+    case 'INSTOCK':
+      return 'success';
+    case 'LOWSTOCK':
+      return 'warning';
+    case 'OUTOFSTOCK':
+      return 'danger';
+    default:
+      return null;
+  }
 }
-import { inject } from 'vue'
-
-
 
 import SelectButton from 'primevue/selectbutton';
-// const options = ref(['One-Way', 'Return']);
+
 const options = ref([
   { icon: 'pi pi-bars', value: 'list' },
   { icon: 'pi pi-th-large', value: 'grid' },
@@ -75,16 +41,12 @@ const options = ref([
 
 const option = ref(options.value[1]);
 
-// watch(option, (newX) => {
-//   console.log(`value is ${JSON.stringify(newX)}`)
-// });
-// const layout = ref('grid');
 const { layout } = inject('dashboardLayout');
 
 
 const getTodos = async() => {
   try {
-    return (await axios.get('http://localhost:3000/blocks')).data;
+    return (await axios.get('http://localhost:3000/cue')).data;
   } catch (error) {
     console.log(error);
   }

@@ -29,7 +29,7 @@ const router = useRouter();
 import { useQueryClient, useQuery, useMutation } from '@tanstack/vue-query';
 
 const { isPending, isSuccess, mutate } = useMutation({
-  mutationFn: (newTodo) => axios.post('http://localhost:3000/blocks', newTodo),
+  mutationFn: (newTodo) => axios.post('http://localhost:3000/cue', newTodo),
   onSuccess: () => {
     blockText.value = '';
     router.push({ name:'home' });
@@ -38,7 +38,7 @@ const { isPending, isSuccess, mutate } = useMutation({
 })
 
 function onButtonClick() {
-  mutate({ date: new Date(), text: blockText.value })
+  mutate({ name: blockText.value })
 }
 // const saveItems = ref([
 //     {

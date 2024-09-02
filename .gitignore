@@ -22,10 +22,14 @@ dist-ssr
 *.sln
 *.sw?
 
-
+web/.vite
 web/node_modules
 /package.json
 web/dist
 web/node_modules
 web/.env
 *.sh
+.env
+Dockerfile
+*.sql
+*.db
