@@ -13,6 +13,7 @@ import { ref, onMounted, watch, computed, reactive } from "vue";
 import { ProductService } from '../service/ProductService';
 import EditBlock from '../components/EditBlock.vue';
 import { inject } from 'vue'
+const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 onMounted(() => {
   ProductService.getProducts().then((data) => (products.value = data.slice(0, 12)));
@@ -46,7 +47,7 @@ const { layout } = inject('dashboardLayout');
 
 const getTodos = async() => {
   try {
-    return (await axios.get('http://localhost:3000/cue')).data;
+    return (await axios.get(app_address+'/cue')).data;
   } catch (error) {
     console.log(error);
   }

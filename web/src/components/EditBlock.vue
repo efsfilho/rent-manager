@@ -8,6 +8,7 @@ import Fluid from 'primevue/fluid';
 import axios from 'axios';
 import { ref, defineEmits, watch, onMounted, onUnmounted, onBeforeMount, computed,  } from 'vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
+const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 const emit = defineEmits(['close']);
 const props = defineProps(['blockId', 'block']);
@@ -22,8 +23,8 @@ const edit = ref(false);
 
 const queryClient = useQueryClient();
 
-const updateFunc = (v) => axios.put('http://localhost:3000/cue/'+blockId.value, { data: v });
-const deleteFunc = (v) => axios.delete('http://localhost:3000/cue/'+blockId.value, v);
+const updateFunc = (v) => axios.put(app_address+'/cue/'+blockId.value, { data: v });
+const deleteFunc = (v) => axios.delete(app_address+'/cue/'+blockId.value, v);
 const updateMutation = useMutation({
   mutationFn: updateFunc,
   onSuccess: () => emit('close'),

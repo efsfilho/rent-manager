@@ -102,6 +102,7 @@ func main() {
 	}))
 
 	// Routes
+	e.Static("/", "web")
 	e.GET("/cue", getCue)
 	e.POST("/cue", postCue)
 	e.PUT("/cue/:id", putCue)
