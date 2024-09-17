@@ -33,8 +33,8 @@ type Log struct {
 type Cue struct {
 	Id     int64 `json:"id"`
 	active bool
-	Done   bool `json:"done"`
-	date   time.Time
+	Done   bool   `json:"done"`
+	Date   string `json:"date"`
 	Name   string `json:"name"`
 }
 
@@ -155,8 +155,10 @@ func initDataBase() error {
 			active BOOLEAN DEFAULT TRUE,
 			done BOOLEAN DEFAULT FALSE,
 			name TEXT NOT NULL,
-			date NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'))
+			date TEXT	DEFAULT (DATE('0', 'unixepoch')) CHECK(length(date) == 10),
+			created_at NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
 		)`
+	// date NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'))
 	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "cue table not created")
 	}
@@ -179,8 +181,8 @@ func initDataBase() error {
 		new_active BOOLEAN,
 		old_name text not null,
 		new_name text not null,
-		old_date NUMERIC not null,
-		new_date NUMERIC not null,
+		old_date TEXT not null,
+		new_date TEXT not null,
 		change_type text not null,
 		created_at NUMERIC not null
 	);
@@ -245,6 +247,13 @@ func initDataBase() error {
 		return errors.Wrap(err, "")
 	}
 
+	// time.Local = time.UTC
+	// time.Local, _ = time.LoadLocation("America/Sao_Paulo")
+	dt := time.Now()
+	if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "trigger not created")
+	}
+
 	return nil
 }
 
@@ -271,14 +280,15 @@ func listCue() ([]Cue, error) {
 	}
 	defer rows.Close()
 
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("connections")
+
 	for rows.Next() {
 		cue := Cue{}
-		cueDate := ""
-		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Name), &(cueDate))
+		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Name), &(cue.Date))
 		if err != nil {
-			return nil, errors.Wrap(err, "")
-		}
-		if cue.date, err = time.Parse(sqliteLayout, cueDate); err != nil {
 			return nil, errors.Wrap(err, "")
 		}
 		cues = append(cues, cue)
@@ -294,6 +304,11 @@ func createCue(cue Cue) error {
 		return errors.Wrap(err, "")
 	}
 
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("connections")
+
 	id, err := r.LastInsertId()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -303,63 +318,84 @@ func createCue(cue Cue) error {
 	return nil
 }
 
-func updateCue(id string, newValues map[string]interface{}) error {
-	var qrySetCol []string
-	var qrySetVal []any
-	var fields []string = []string{"done", "name"}
-	log.Debug().Interface("fields_allowed", fields).Msg("")
+func parseIsoDateTime(dt interface{}) (time.Time, error) {
+	v, ok := dt.(string)
+	if !ok {
+		return time.Time{}, errors.New("datetime is not a string")
+	}
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
+	// expected format: YYYY-MM-DDTHH:mm:ss.sssZ from javascript new Date().toISOString()
+	dtParsed, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return dtParsed, nil
+}
 
+func updateCue(id string, newValues map[string]interface{}) error {
+	var queryColumns []string
+	var queryValues []any
+	var allowedFields []string = []string{"done", "name", "date"}
 	if _, err := strconv.Atoi(id); err != nil {
 		log.Error().Msgf("id value: %v", id)
 		return errors.Wrap(err, "id not valid")
 	}
 
-	for _, v := range fields {
-		if i, ok := newValues[v]; ok {
-			qrySetCol = append(qrySetCol, v+" = ?")
-			qrySetVal = append(qrySetVal, i)
+	for _, field := range allowedFields {
+		if value, ok := newValues[field]; ok {
+			queryColumns = append(queryColumns, field+" = ?")
+			if field == "date" {
+				dateValue, err := parseIsoDateTime(value)
+				if err != nil {
+					return errors.Wrap(err, "")
+				}
+				// t, _ := i.(time.Time)
+				queryValues = append(queryValues, dateValue.Format(time.DateOnly))
+			} else {
+				queryValues = append(queryValues, value)
+			}
 		}
 	}
-	// last value used at where clause
-	qrySetVal = append(qrySetVal, id)
 
+	// last value used in where clause
+	queryValues = append(queryValues, id)
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	defer tx.Commit()
 
-	qry := "UPDATE cue SET " + strings.Join(qrySetCol, ", ") + " WHERE id = ? AND active = TRUE;"
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("connections")
+
+	qry := "UPDATE cue SET " + strings.Join(queryColumns, ", ") + " WHERE id = ? AND active = TRUE;"
+
+	log.Debug().Stack().Str("query_prepared", qry).Msg("")
+	log.Debug().Interface("query_values", queryValues).Msg("")
+
 	stmt, err := tx.Prepare(qry)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return errors.Wrap(err, "Prepare")
 	}
 	defer stmt.Close()
-	log.Debug().Stack().Str("query_prepared", qry).Msg("")
-	log.Debug().Interface("query_values", qrySetVal).Msg("")
 
-	res, err := stmt.Exec(qrySetVal...)
+	res, err := stmt.Exec(queryValues...)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return errors.Wrap(err, "Exec")
 	}
-
 	count, err := res.RowsAffected()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
 	if count != 1 {
 		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
-
 		log.Info().Msg("Rollback executed.")
 		return errors.New("an error occur while updating")
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return errors.Wrap(err, "")
 	}
 
 	return nil
@@ -370,28 +406,30 @@ func removeCue(id string) error {
 		log.Error().Msgf("id value: %v", id)
 		return errors.Wrap(err, "id not valid")
 	}
-
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	defer tx.Commit()
+
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("connections")
 
 	stmt, err := tx.Prepare("UPDATE cue SET active = FALSE WHERE id = ?;")
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	defer stmt.Close()
-
 	res, err := stmt.Exec(id)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
 	count, err := res.RowsAffected()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-
 	log.Info().Msgf("RowsAffected: %v", count)
 	if count != 1 {
 		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
@@ -401,12 +439,6 @@ func removeCue(id string) error {
 		log.Info().Msg("Rollback executed.")
 		return errors.New("an error occur while removing")
 	}
-
-	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "")
-	}
-
 	log.Info().Msgf("cue removed. id: %s", id)
-
 	return nil
 }

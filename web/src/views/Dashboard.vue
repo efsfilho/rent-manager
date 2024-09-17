@@ -63,7 +63,7 @@ const { isLoading, isSuccess, isPending, isError, isFetching, data, error, refet
 }, queryClient);
 
 const editBlockVisible = ref(false);
-
+// console.log(app_address, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
 // import { block } from '../components/block';
 // import { useBlocks } from '../components/block';
@@ -76,9 +76,11 @@ const showEditBlock  = (show) => {
     // console.log('DSDDDDD', editBlockVisible.value, visible.value)
 }
 const setBlock = (item) => {
-  console.log('item', JSON.stringify(item));
+  // console.log('item', JSON.stringify(item));
   blockId.value = item.id;
   block.value = item;
+  block.date = item.date;
+  const date = new Date();
   showEditBlock(true);
 }
 watch(data, (newX) => {

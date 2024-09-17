@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -19,7 +18,7 @@ func getCue(c echo.Context) error {
 }
 
 func postCue(c echo.Context) error {
-	cue := Cue{0, true, false, time.Now(), ""}
+	cue := Cue{0, true, false, "", ""}
 	if err := c.Bind(&cue); err != nil {
 		log.Error().Stack().Err(err).Msg("postCue")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
@@ -36,15 +35,17 @@ func postCue(c echo.Context) error {
 func putCue(c echo.Context) error {
 	id := c.Param("id")
 	var bodyAndParams map[string]map[string]interface{}
-	var body map[string]interface{}
 
 	if err := c.Bind(&bodyAndParams); err != nil {
 		log.Error().Stack().Err(err).Msg("putCue")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
 	}
 
-	// var body map[string]interface{} = bodyAndParams["data"]
-	body = bodyAndParams["data"]
+	body, ok := bodyAndParams["data"]
+	if !ok {
+		log.Error().Msgf("error handling request body at putCue() %v", bodyAndParams)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	log.Debug().Str("path_param_id", id).Msg("")
 	log.Debug().Interface("request_body", body).Msg("")

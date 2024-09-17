@@ -19,6 +19,7 @@ import Divider from 'primevue/divider';
 import Panel from 'primevue/panel';
 import SplitButton from 'primevue/splitbutton';
 import ProgressSpinner from 'primevue/progressspinner';
+import DatePicker from 'primevue/datepicker';
 import axios from 'axios';
 import {ref} from 'vue';
 const blockText = ref(null);
@@ -61,7 +62,7 @@ function onButtonClick() {
         <InputText class="w-full" id="new-block" v-model="blockText" />
         <label for="new-block">Block name</label>
       </FloatLabel>
-
+      <DatePicker id="datepicker-24h" v-model="datetime24h" showTime hourFormat="24" fluid />
       <template #footer>
         <div class="flex flex-wrap items-center justify-end gap-4">
           <Button @click="onButtonClick" >Salvar</Button>

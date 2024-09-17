@@ -21,6 +21,7 @@ var db *sql.DB
 var sqliteLayout string = "2006-01-02 15:04:05.000"
 
 func main() {
+	// time.Local = time.UTC
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: sqliteLayout})
@@ -43,10 +44,11 @@ func main() {
 	// Data base init
 	dbFile := "./rentmem.db"
 	os.Remove(dbFile)
-	db, err = sql.Open("sqlite3", "./rentmem.db")
+	db, err = sql.Open("sqlite3", "file:./rentmem.db?cache=shared")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't open sqlite file")
 	}
+	db.SetMaxOpenConns(2)
 	defer db.Close()
 
 	err = initDataBase()
