@@ -44,7 +44,7 @@ func main() {
 	// Data base init
 	dbFile := "./rentmem.db"
 	os.Remove(dbFile)
-	db, err = sql.Open("sqlite3", "file:./rentmem.db?cache=shared")
+	db, err = sql.Open("sqlite3", "file:./rentmem.db")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't open sqlite file")
 	}

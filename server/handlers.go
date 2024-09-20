@@ -18,7 +18,7 @@ func getCue(c echo.Context) error {
 }
 
 func postCue(c echo.Context) error {
-	cue := Cue{0, true, false, "", ""}
+	var cue Cue
 	if err := c.Bind(&cue); err != nil {
 		log.Error().Stack().Err(err).Msg("postCue")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
@@ -34,24 +34,23 @@ func postCue(c echo.Context) error {
 
 func putCue(c echo.Context) error {
 	id := c.Param("id")
-	var bodyAndParams map[string]map[string]interface{}
-
-	if err := c.Bind(&bodyAndParams); err != nil {
+	var body map[string]map[string]interface{}
+	if err := c.Bind(&body); err != nil {
 		log.Error().Stack().Err(err).Msg("putCue")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
 	}
 
-	body, ok := bodyAndParams["data"]
+	data, ok := body["data"]
 	if !ok {
-		log.Error().Msgf("error handling request body at putCue() %v", bodyAndParams)
+		log.Error().Msgf("error handling request body at putCue() %v", body)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
 	log.Debug().Str("path_param_id", id).Msg("")
-	log.Debug().Interface("request_body", body).Msg("")
+	log.Debug().Interface("request_body", data).Msg("")
 
-	if err := updateCue(id, body); err != nil {
-		log.Error().Stack().Err(err).Msg("putCue()")
+	if err := updateCue(id, data); err != nil {
+		log.Error().Stack().Err(err).Msg("putCue")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 

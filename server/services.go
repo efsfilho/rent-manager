@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -226,33 +227,30 @@ func initDataBase() error {
 		return errors.Wrap(err, "trigger not created")
 	}
 
-	stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	defer stmt.Close()
-	if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
-		return errors.Wrap(err, "")
-	}
-
-	// time.Local = time.UTC
-	// time.Local, _ = time.LoadLocation("America/Sao_Paulo")
-	dt := time.Now()
-	if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
-		return errors.Wrap(err, "trigger not created")
-	}
+	// stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
+	// if err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// defer stmt.Close()
+	// if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
+	// 	return errors.Wrap(err, "")
+	// }
+	// dt := time.Now()
+	// if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
+	// 	return errors.Wrap(err, "trigger not created")
+	// }
 
 	return nil
 }
@@ -298,8 +296,13 @@ func listCue() ([]Cue, error) {
 }
 
 func createCue(cue Cue) error {
+	log.Debug().Interface("cue", cue).Msg("")
+	parsedDate, err := parseIsoDateTime(cue.Date)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
 	qry := "INSERT INTO cue (active, name, date) VALUES (TRUE, ?, ?)"
-	r, err := dbExec(qry, cue.Name, time.Now().Format(sqliteLayout))
+	result, err := dbExec(qry, cue.Name, parsedDate.Format(time.DateOnly))
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -309,7 +312,7 @@ func createCue(cue Cue) error {
 		Int("open", db.Stats().OpenConnections).
 		Msg("connections")
 
-	id, err := r.LastInsertId()
+	id, err := result.LastInsertId()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -341,27 +344,26 @@ func updateCue(id string, newValues map[string]interface{}) error {
 		return errors.Wrap(err, "id not valid")
 	}
 
+	// detect fields to be used in where clause
 	for _, field := range allowedFields {
 		if value, ok := newValues[field]; ok {
 			queryColumns = append(queryColumns, field+" = ?")
 			if field == "date" {
-				dateValue, err := parseIsoDateTime(value)
+				parsedDate, err := parseIsoDateTime(value)
 				if err != nil {
-					return errors.Wrap(err, "")
+					return errors.Wrap(err, "parseIsoDateTime()")
 				}
-				// t, _ := i.(time.Time)
-				queryValues = append(queryValues, dateValue.Format(time.DateOnly))
+				queryValues = append(queryValues, parsedDate.Format(time.DateOnly))
 			} else {
 				queryValues = append(queryValues, value)
 			}
 		}
 	}
 
-	// last value used in where clause
 	queryValues = append(queryValues, id)
 	tx, err := db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "")
+		return errors.Wrap(err, "db.Begin()")
 	}
 	defer tx.Commit()
 
@@ -380,7 +382,6 @@ func updateCue(id string, newValues map[string]interface{}) error {
 		return errors.Wrap(err, "Prepare")
 	}
 	defer stmt.Close()
-
 	res, err := stmt.Exec(queryValues...)
 	if err != nil {
 		return errors.Wrap(err, "Exec")
@@ -389,22 +390,20 @@ func updateCue(id string, newValues map[string]interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+	log.Info().Msgf("rowsAffected: %v", count)
 	if count != 1 {
-		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
-		log.Info().Msg("Rollback executed.")
+		log.Info().Msg("update not concluded.pdate not concluded. rollback executed.")
 		return errors.New("an error occur while updating")
 	}
-
 	return nil
 }
 
 func removeCue(id string) error {
 	if _, err := strconv.Atoi(id); err != nil {
-		log.Error().Msgf("id value: %v", id)
-		return errors.Wrap(err, "id not valid")
+		return errors.Wrap(err, fmt.Sprintf("id not value, id : %v", id))
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -430,13 +429,12 @@ func removeCue(id string) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	log.Info().Msgf("RowsAffected: %v", count)
+	log.Info().Msgf("rowsAffected: %v", count)
 	if count != 1 {
-		log.Info().Msgf("Update not concluded. RowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
-		log.Info().Msg("Rollback executed.")
+		log.Info().Msg("update not concluded. rollback executed.")
 		return errors.New("an error occur while removing")
 	}
 	log.Info().Msgf("cue removed. id: %s", id)
