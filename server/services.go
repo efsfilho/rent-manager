@@ -193,7 +193,7 @@ func initDataBase() error {
 		return errors.Wrap(err, "log_cue not created")
 	}
 	qry = `
-	CREATE TRIGGER log_cue_after_update 
+	CREATE TRIGGER IF NOT EXISTS log_cue_after_update 
 	AFTER UPDATE ON cue
 		WHEN old.name <> new.name
 			OR old.active <> new.active

@@ -31,7 +31,7 @@ app.use(PrimeVue, {
     options:{
       darkModeSelector: 'system'
     }
-  }
+  },
 });
 app.mount("#app");
 

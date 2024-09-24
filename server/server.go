@@ -42,9 +42,9 @@ func main() {
 	}
 
 	// Data base init
-	dbFile := "./rentmem.db"
-	os.Remove(dbFile)
-	db, err = sql.Open("sqlite3", "file:./rentmem.db")
+	dbFile := "file:./rentmem.db"
+	// os.Remove(dbFile)
+	db, err = sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't open sqlite file")
 	}

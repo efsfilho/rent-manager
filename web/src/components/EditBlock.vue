@@ -4,7 +4,7 @@
     <Dialog v-model:visible="visible"  modal header="Edit Profile" :style="{ width: '25rem' }">
       <template #header>
         <div class="inline-flex items-center justify-center gap-2">
-          <span class="font-bold whitespace-nowrap">  block.mode</span>
+          <span v-if="isANewBlock || edit" class="font-bold whitespace-nowrap">{{ isANewBlock ? 'New': 'Edit' }}</span>
         </div>
       </template>
 
@@ -17,7 +17,7 @@
             <div class="grid grid-cols-1 gap-8 mt-6">
               <div class="col-span-full">
                 <FloatLabel>
-                  <InputText :disabled="!edit" id="new-block" v-model="blockName"/>
+                  <InputText :disabled="!isANewBlock && !edit" id="new-block" v-model="blockName"/>
                   <label for="new-block">Block name</label>
                 </FloatLabel>
               </div>
@@ -26,7 +26,7 @@
               </div> -->
               
             <FloatLabel>
-              <DatePicker v-model="blockDate" :disabled="!edit" dateFormat="dd/mm/yy" inputId="date" />
+              <DatePicker v-model="blockDate" :disabled="!isANewBlock && !edit" dateFormat="dd/mm/yy" inputId="date" />
               <label for="date">Date</label>
             </FloatLabel>
 
@@ -40,13 +40,13 @@
       <template #footer>
         <div class="flex w-full justify-between ">
           <div class="flex gap-4">
-            <Button v-if="edit" label="Delete" severity="secondary" @click="remove()"/>
+            <Button v-if="!isANewBlock && edit" label="Delete" severity="secondary" @click="remove()"/>
           </div>
           <div class="flex gap-4">
-            <Button v-if="!edit && !blockDone" label="Close block" severity="success" @click="markAsDone"/>
-            <Button v-if="edit" label="Cancel" outlined severity="secondary" @click="edit=false" autofocus />
-            <Button v-if="edit" label="Save" outlined severity="secondary" @click="save()"/>
-            <Button v-if="!edit" label="Edit" severity="secondary" @click="edit=true"/>
+            <Button v-if="!isANewBlock && !edit && !blockDone" label="Close block" severity="success" @click="markAsDone"/>
+            <Button v-if="isANewBlock || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
+            <Button v-if="isANewBlock || edit" label="Save" severity="secondary" @click="save()"/>
+            <Button v-if="!isANewBlock && !edit" label="Edit" severity="secondary" @click="edit=true"/>
           </div>
         </div>
       </template>
@@ -70,6 +70,7 @@ const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 const emit = defineEmits(['close']);
 const props = defineProps(['block']);
+const isANewBlock = ref(!props.block.id);
 const edit = ref(false);
 const visible = ref(true);
 watch(visible, (n) => {
