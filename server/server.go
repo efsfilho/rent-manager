@@ -42,7 +42,7 @@ func main() {
 	}
 
 	// Data base init
-	dbFile := "file:./rentmem.db"
+	dbFile := "rentmem.db"
 	// os.Remove(dbFile)
 	db, err = sql.Open("sqlite3", dbFile)
 	if err != nil {
@@ -109,6 +109,7 @@ func main() {
 	e.POST("/cue", postCue)
 	e.PUT("/cue/:id", putCue)
 	e.DELETE("/cue/:id", delCue)
+	e.POST("/pay/cue/:id", payCue)
 	// e.POST("/tenants", postTenant)
 	// e.GET("/tenants", getTenant)
 	// e.PUT("/tenants/:id", putTenant)

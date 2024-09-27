@@ -17,18 +17,18 @@
             <div class="grid grid-cols-1 gap-8 mt-6">
               <div class="col-span-full">
                 <FloatLabel>
-                  <InputText :disabled="!isANewBlock && !edit" id="new-block" v-model="blockName"/>
                   <label for="new-block">Block name</label>
+                  <InputText :disabled="!isANewBlock && !edit" id="new-block" v-model="blockName"/>
                 </FloatLabel>
               </div>
               <!-- <div v-else class="col-span-full">
                 <p class="px-2.5 py-2 text-slate-500">{{ blockName }}</p>
               </div> -->
               
-            <FloatLabel>
-              <DatePicker v-model="blockDate" :disabled="!isANewBlock && !edit" dateFormat="dd/mm/yy" inputId="date" />
-              <label for="date">Date</label>
-            </FloatLabel>
+              <FloatLabel>
+                <label for="date">Date</label>
+                <DatePicker v-model="blockDate" :disabled="!isANewBlock && !edit" dateFormat="dd/mm/yy" inputId="date" />
+              </FloatLabel>
 
             </div>
           </Fluid>
@@ -43,7 +43,7 @@
             <Button v-if="!isANewBlock && edit" label="Delete" severity="secondary" @click="remove()"/>
           </div>
           <div class="flex gap-4">
-            <Button v-if="!isANewBlock && !edit && !blockDone" label="Close block" severity="success" @click="markAsDone"/>
+            <Button v-if="!isANewBlock && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
             <Button v-if="isANewBlock || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
             <Button v-if="isANewBlock || edit" label="Save" severity="secondary" @click="save()"/>
             <Button v-if="!isANewBlock && !edit" label="Edit" severity="secondary" @click="edit=true"/>
@@ -55,8 +55,8 @@
   </div>
 </template>
 <script setup>
-import FloatLabel from 'primevue/floatlabel';
 import InputText from 'primevue/inputtext';
+import FloatLabel from 'primevue/floatlabel';
 import Button from "primevue/button";
 import ProgressSpinner from 'primevue/progressspinner';
 import Dialog from 'primevue/dialog';
@@ -89,13 +89,14 @@ const removeTZ = (dateString) => {
   // year selecting issue: https://github.com/primefaces/primevue/issues/6203
 }
 const blockId = ref(props.block.id);
-const blockDone = ref(props.block.done);
+const isPaid = ref(props.block.status > 1);
 const blockName = ref(props.block.name);
 const blockDate = ref(removeTZ(props.block.date));
 
 const createMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/cue', data) });
 const updateMutation = useMutation({ mutationFn: (data) => axios.put(app_address+'/cue/'+blockId.value, {data})});
 const deleteMutation = useMutation({ mutationFn: () => axios.delete(app_address+'/cue/'+blockId.value) });
+const payMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/pay/cue/'+blockId.value) });
 const queryClient = useQueryClient();
 const mutationOptions = {
   onSuccess: () => emit('close'),
@@ -118,9 +119,9 @@ const save = () => {
   }
 }
 
-const markAsDone = () => {
-  updateMutation.mutate({
-    done: true
+const markAsPaid = () => {
+  payMutation.mutate({
+    status: 2
   }, mutationOptions);
 }
 

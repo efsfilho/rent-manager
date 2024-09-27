@@ -67,6 +67,16 @@ func delCue(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
+func payCue(c echo.Context) error {
+	id := c.Param("id")
+	if err := markCueAsPaid(id); err != nil {
+		log.Error().Stack().Err(err).Msg("delCue")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
 // func postTenant(c echo.Context) error {
 // 	tenant := Tenant{}
 

@@ -31,10 +31,31 @@ type Log struct {
 	// User            int32
 }
 
+type status int8
+
+const (
+	pending status = iota
+	overdue        // vencido
+	paid
+)
+
+func (s status) String() string {
+	switch s {
+	case pending:
+		return "pending"
+	case overdue:
+		return "overdue"
+	case paid:
+		return "paid"
+	}
+	return "unknown"
+}
+
 type Cue struct {
 	Id     int64 `json:"id"`
 	active bool
 	Done   bool   `json:"done"`
+	Status status `json:"status"`
 	Date   string `json:"date"`
 	Name   string `json:"name"`
 }
@@ -152,12 +173,30 @@ func dbExec(query string, values ...any) (sql.Result, error) {
 func initDataBase() error {
 	qry := `
 		CREATE TABLE IF NOT EXISTS cue (
-			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-			active BOOLEAN DEFAULT TRUE,
-			done BOOLEAN DEFAULT FALSE,
-			name TEXT NOT NULL,
-			date TEXT	DEFAULT (DATE('0', 'unixepoch')) CHECK(length(date) == 10),
-			created_at NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
+			id 		INTEGER
+					NOT NULL
+					PRIMARY KEY AUTOINCREMENT,
+
+			active 	BOOLEAN
+					DEFAULT TRUE,
+
+			done 	BOOLEAN 
+					DEFAULT FALSE,
+
+			status 	INTEGER
+					NOT NULL
+					DEFAULT 0
+					CHECK(status >= 0 AND status <= 2), -- 0=pending, 1=overdue, 2=paid
+
+			name 	TEXT
+					NOT NULL,
+
+			date 	TEXT
+					DEFAULT (DATE('0', 'unixepoch'))
+					CHECK(length(date) == 10),
+
+			created_at NUMERIC
+					DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
 		)`
 	// date NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'))
 	if _, err := db.Exec(qry); err != nil {
@@ -180,11 +219,13 @@ func initDataBase() error {
 		row_id integer not null,
 		old_active BOOLEAN,
 		new_active BOOLEAN,
-		old_name text not null,
-		new_name text not null,
+		old_status INTEGER,
+		new_status INTEGER,
+		old_name TEXT not null,
+		new_name TEXT not null,
 		old_date TEXT not null,
 		new_date TEXT not null,
-		change_type text not null,
+		change_type TEXT not null,
 		created_at NUMERIC not null
 	);
 	
@@ -227,30 +268,30 @@ func initDataBase() error {
 		return errors.Wrap(err, "trigger not created")
 	}
 
-	// stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
-	// if err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// defer stmt.Close()
-	// if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
-	// 	return errors.Wrap(err, "")
-	// }
-	// dt := time.Now()
-	// if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
-	// 	return errors.Wrap(err, "trigger not created")
-	// }
+	stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
+		return errors.Wrap(err, "")
+	}
+	dt := time.Now()
+	if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "trigger not created")
+	}
 
 	return nil
 }
@@ -272,7 +313,7 @@ func saveLog() {
 
 func listCue() ([]Cue, error) {
 	var cues []Cue = []Cue{}
-	rows, err := db.Query("SELECT id, active, done, name, date FROM cue WHERE active = TRUE;")
+	rows, err := db.Query("SELECT id, active, done, status, name, date FROM cue WHERE active = TRUE;")
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -285,7 +326,7 @@ func listCue() ([]Cue, error) {
 
 	for rows.Next() {
 		cue := Cue{}
-		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Name), &(cue.Date))
+		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Status), &(cue.Name), &(cue.Date))
 		if err != nil {
 			return nil, errors.Wrap(err, "")
 		}
@@ -338,7 +379,7 @@ func parseIsoDateTime(dt interface{}) (time.Time, error) {
 func updateCue(id string, newValues map[string]interface{}) error {
 	var queryColumns []string
 	var queryValues []any
-	var allowedFields []string = []string{"done", "name", "date"}
+	var allowedFields []string = []string{"status", "name", "date"}
 	if _, err := strconv.Atoi(id); err != nil {
 		log.Error().Msgf("id value: %v", id)
 		return errors.Wrap(err, "id not valid")
@@ -438,5 +479,45 @@ func removeCue(id string) error {
 		return errors.New("an error occur while removing")
 	}
 	log.Info().Msgf("cue removed. id: %s", id)
+	return nil
+}
+
+func markCueAsPaid(id string) error {
+	if _, err := strconv.Atoi(id); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("id not value, id : %v", id))
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer tx.Commit()
+
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("connections")
+
+	stmt, err := tx.Prepare("UPDATE cue SET status = 2 WHERE id = ?;")
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	defer stmt.Close()
+	res, err := stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Info().Msgf("rowsAffected: %v", count)
+	if count != 1 {
+		if err = tx.Rollback(); err != nil {
+			return errors.Wrap(err, "")
+		}
+		log.Info().Msg("update not concluded. rollback executed.")
+		return errors.New("an error occur while removing")
+	}
+	log.Info().Msgf("cue paid. id: %s", id)
 	return nil
 }
