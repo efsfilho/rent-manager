@@ -2,8 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
-	"strconv"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -35,7 +34,8 @@ type status int8
 
 const (
 	pending status = iota
-	overdue        // vencido
+	due
+	overdue // vencido
 	paid
 )
 
@@ -57,6 +57,7 @@ type Cue struct {
 	Done   bool   `json:"done"`
 	Status status `json:"status"`
 	Date   string `json:"date"`
+	Dt     string `json:"dt"`
 	Name   string `json:"name"`
 }
 
@@ -170,7 +171,14 @@ func dbExec(query string, values ...any) (sql.Result, error) {
 	return stmt.Exec(values...)
 }
 
-func initDataBase() error {
+func clearDB() error {
+	if _, err := db.Exec("DROP TABLE cue"); err != nil {
+		return errors.Wrap(err, "cue table not created")
+	}
+	return nil
+}
+
+func initDB() error {
 	qry := `
 		CREATE TABLE IF NOT EXISTS cue (
 			id 		INTEGER
@@ -186,7 +194,7 @@ func initDataBase() error {
 			status 	INTEGER
 					NOT NULL
 					DEFAULT 0
-					CHECK(status >= 0 AND status <= 2), -- 0=pending, 1=overdue, 2=paid
+					CHECK(status >= 0 AND status <= 3), -- 0=pending, 1=due, 2=overdue, 3=paid
 
 			name 	TEXT
 					NOT NULL,
@@ -228,8 +236,7 @@ func initDataBase() error {
 		change_type TEXT not null,
 		created_at NUMERIC not null
 	);
-	
-`
+	`
 	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "log_cue not created")
 	}
@@ -265,31 +272,60 @@ func initDataBase() error {
 	END;
 	`
 	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "trigger not created")
+		return errors.Wrap(err, "tr4igger not created")
 	}
 
-	stmt, err := db.Prepare("INSERT INTO cue (active, name) VALUES (?, ?)")
+	// stmt, err := db.Prepare("INSERT INTO cue (active, name, dt) VALUES (?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO cue (active, name, date) VALUES (?, ?, ?)")
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	defer stmt.Close()
-	if _, err = stmt.Exec(true, "a1a1a1"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "a2a22aa2"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "bb34b4b234bb234"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "sadjlhasklhasjkldh"); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas"); err != nil {
-		return errors.Wrap(err, "")
-	}
 	dt := time.Now()
+	dt = time.Date(dt.Year(), dt.Month(), 11, 0, 0, 0, 0, time.UTC)
+	// if _, err = stmt.Exec(true, "a1a1a1", time.Now().Add(time.Duration(rand.IntN(10))*time.Minute).Format(sqliteLayout)); err != nil {
+	if _, err = stmt.Exec(true, "a1a1a1", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "")
+	}
+	dt = time.Date(dt.Year(), dt.Month(), 7, 0, 0, 0, 0, time.UTC)
+	// if _, err = stmt.Exec(true, "a2a22aa2", time.Now().Add(time.Duration(rand.IntN(10))*time.Minute).Format(sqliteLayout)); err != nil {
+	if _, err = stmt.Exec(true, "a2a22aa2", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "")
+	}
+	dt = time.Date(dt.Year(), dt.Month(), 10, 0, 0, 0, 0, time.UTC)
+	// if _, err = stmt.Exec(true, "bb34b4b234bb234", time.Now().Add(time.Duration(rand.IntN(10))*time.Minute).Format(sqliteLayout)); err != nil {
+	if _, err = stmt.Exec(true, "bb34b4b234bb234", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "")
+	}
+	dt = time.Date(dt.Year(), dt.Month(), 2, 0, 0, 0, 0, time.UTC)
+	if _, err = stmt.Exec(true, "sadjlhasklhasjkldh", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "")
+	}
+	dt = time.Date(dt.Year(), dt.Month(), rand.IntN(20), 0, 0, 0, 0, time.UTC)
+	if _, err = stmt.Exec(true, "ÇASDçasçdasçfkasjfas", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "")
+	}
+
+	dt = dt.Add(time.Duration(rand.IntN(10)) * time.Minute)
+	// time.Now().Add(time.Duration(rand.IntN(10)) * time.Minute)
 	if _, err := db.Exec("insert into cue (name, date) values ('TESssssTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "trigger not created")
+	}
+	// dt = dt.AddDate(0, 0, 1)
+	dt = time.Date(dt.Year(), dt.Month(), rand.IntN(20), 0, 0, 0, 0, time.UTC)
+	if _, err := db.Exec("insert into cue (name, date) values ('TESTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
+		return errors.Wrap(err, "trigger not created")
+	}
+
+	qry = `
+	CREATE TABLE IF NOT EXISTS scheduler (
+		id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+		start_exec DATETIME,
+		end_exec DATETIME,
+		next_exec DATETIME
+	)
+	`
+	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "trigger not created")
 	}
 
@@ -313,17 +349,16 @@ func saveLog() {
 
 func listCue() ([]Cue, error) {
 	var cues []Cue = []Cue{}
+
 	rows, err := db.Query("SELECT id, active, done, status, name, date FROM cue WHERE active = TRUE;")
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 	defer rows.Close()
-
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open", db.Stats().OpenConnections).
-		Msg("connections")
-
+		Msg("listCue() / connections")
 	for rows.Next() {
 		cue := Cue{}
 		err = rows.Scan(&(cue.Id), &(cue.active), &(cue.Done), &(cue.Status), &(cue.Name), &(cue.Date))
@@ -337,7 +372,7 @@ func listCue() ([]Cue, error) {
 }
 
 func createCue(cue Cue) error {
-	log.Debug().Interface("cue", cue).Msg("")
+	log.Debug().Interface("cue", cue).Msg("createCue()")
 	parsedDate, err := parseIsoDateTime(cue.Date)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -351,7 +386,7 @@ func createCue(cue Cue) error {
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open", db.Stats().OpenConnections).
-		Msg("connections")
+		Msg("createCue() / connections")
 
 	id, err := result.LastInsertId()
 	if err != nil {
@@ -376,15 +411,10 @@ func parseIsoDateTime(dt interface{}) (time.Time, error) {
 	return dtParsed, nil
 }
 
-func updateCue(id string, newValues map[string]interface{}) error {
+func updateCue(id int64, newValues map[string]interface{}) error {
 	var queryColumns []string
 	var queryValues []any
-	var allowedFields []string = []string{"status", "name", "date"}
-	if _, err := strconv.Atoi(id); err != nil {
-		log.Error().Msgf("id value: %v", id)
-		return errors.Wrap(err, "id not valid")
-	}
-
+	var allowedFields []string = []string{"status", "name", "date", "dt"}
 	// detect fields to be used in where clause
 	for _, field := range allowedFields {
 		if value, ok := newValues[field]; ok {
@@ -395,6 +425,13 @@ func updateCue(id string, newValues map[string]interface{}) error {
 					return errors.Wrap(err, "parseIsoDateTime()")
 				}
 				queryValues = append(queryValues, parsedDate.Format(time.DateOnly))
+			} else if field == "dt" {
+				// TODO remove field dt
+				log.Info().Str("dt 1", value.(string)).Msg("")
+				dtParsed, _ := parseIsoDateTime(value)
+				// dtParsed, _ := time.Parse(sqliteLayout, value.(string))
+				log.Info().Str("dt 2", dtParsed.Format(sqliteLayout)).Msg("")
+				queryValues = append(queryValues, dtParsed.Format(sqliteLayout))
 			} else {
 				queryValues = append(queryValues, value)
 			}
@@ -411,7 +448,7 @@ func updateCue(id string, newValues map[string]interface{}) error {
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open", db.Stats().OpenConnections).
-		Msg("connections")
+		Msg("updateCue() / connections")
 
 	qry := "UPDATE cue SET " + strings.Join(queryColumns, ", ") + " WHERE id = ? AND active = TRUE;"
 
@@ -431,8 +468,8 @@ func updateCue(id string, newValues map[string]interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	log.Info().Msgf("rowsAffected: %v", count)
 	if count != 1 {
+		log.Info().Msgf("rowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
@@ -442,10 +479,7 @@ func updateCue(id string, newValues map[string]interface{}) error {
 	return nil
 }
 
-func removeCue(id string) error {
-	if _, err := strconv.Atoi(id); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("id not value, id : %v", id))
-	}
+func removeCue(id int64) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -455,7 +489,7 @@ func removeCue(id string) error {
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open", db.Stats().OpenConnections).
-		Msg("connections")
+		Msg("removeCue() / connections")
 
 	stmt, err := tx.Prepare("UPDATE cue SET active = FALSE WHERE id = ?;")
 	if err != nil {
@@ -470,22 +504,19 @@ func removeCue(id string) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	log.Info().Msgf("rowsAffected: %v", count)
 	if count != 1 {
+		log.Info().Msgf("rowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
 		log.Info().Msg("update not concluded. rollback executed.")
 		return errors.New("an error occur while removing")
 	}
-	log.Info().Msgf("cue removed. id: %s", id)
+	log.Info().Msgf("cue removed. id: %d", id)
 	return nil
 }
 
-func markCueAsPaid(id string) error {
-	if _, err := strconv.Atoi(id); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("id not value, id : %v", id))
-	}
+func changeCueStatus(id int64, s status) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -495,14 +526,14 @@ func markCueAsPaid(id string) error {
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open", db.Stats().OpenConnections).
-		Msg("connections")
+		Msg("changeCueStatus() / connections")
 
-	stmt, err := tx.Prepare("UPDATE cue SET status = 2 WHERE id = ?;")
+	stmt, err := tx.Prepare("UPDATE cue SET status = ? WHERE id = ?;")
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
 	defer stmt.Close()
-	res, err := stmt.Exec(id)
+	res, err := stmt.Exec(s, id)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -510,14 +541,106 @@ func markCueAsPaid(id string) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	log.Info().Msgf("rowsAffected: %v", count)
 	if count != 1 {
+		log.Info().Msgf("rowsAffected: %v", count)
 		if err = tx.Rollback(); err != nil {
 			return errors.Wrap(err, "")
 		}
 		log.Info().Msg("update not concluded. rollback executed.")
 		return errors.New("an error occur while removing")
 	}
-	log.Info().Msgf("cue paid. id: %s", id)
+	log.Info().
+		Int64("id", id).
+		Str("new_status", s.String()).
+		Msg("cue status changed.")
 	return nil
+}
+
+// var cuesStats = make(map[int]bool)
+
+func checkDiff() {
+	log.Info().Msg("checkDiff started")
+	cues, err := listCue()
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("checkDiff")
+		return
+	}
+	// if len(cuesStats) == 0 {
+	// 	for _, cue := range cues {
+	// 		cuesStats[int(cue.Id)] = cue.Done
+	// 	}
+	// } else {
+	for _, cue := range cues {
+		if cue.Done {
+			newStat := make(map[string]interface{})
+			newStat["status"] = 1
+			err := updateCue(cue.Id, newStat)
+			if err != nil {
+				log.Error().Stack().Err(err).Msg("")
+			} else {
+				log.Debug().Int("id", int(cue.Id)).Msg("uptated")
+			}
+		}
+	}
+	// }
+	// log.Info().Interface("cues", cuesStats).Msg("")
+}
+
+func checkDueDates() {
+	cues, err := listCue()
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("")
+	}
+	for _, cue := range cues {
+		cueDate, err := time.Parse(time.DateOnly, cue.Date)
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("")
+		}
+		now := time.Now()
+		now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+		if cueDate.Equal(now) && cue.Status == pending && cue.Status != due {
+			if err = changeCueStatus(cue.Id, due); err != nil {
+				log.Error().Stack().Err(err).Msg("")
+			}
+		} else if cueDate.Before(now) && cue.Status != paid && cue.Status != overdue {
+			if err = changeCueStatus(cue.Id, overdue); err != nil {
+				log.Error().Stack().Err(err).Msg("")
+			}
+		} else if cueDate.After(now) && cue.Status != paid && cue.Status != pending {
+			if err = changeCueStatus(cue.Id, pending); err != nil {
+				log.Error().Stack().Err(err).Msg("")
+			}
+		}
+	}
+}
+
+func executeScheduler() {
+	ticker := time.NewTicker(time.Hour)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				{
+					log.Info().Msg("scheduler start")
+					result, err := dbExec("INSERT INTO scheduler (start_exec) VALUES (?);", time.Now().Format(sqliteLayout))
+					if err != nil {
+						log.Error().Stack().Err(err).Msg("")
+					}
+					scheduler_id, err := result.LastInsertId()
+					if err != nil {
+						log.Error().Stack().Err(err).Msg("")
+					}
+
+					checkDueDates()
+
+					_, err = dbExec("UPDATE scheduler SET end_exec = ? WHERE id = ?;", time.Now().Format(sqliteLayout), scheduler_id)
+					if err != nil {
+						log.Error().Stack().Err(err).Msg("")
+					}
+					log.Info().Msg("scheduler end")
+				}
+			}
+		}
+	}()
 }

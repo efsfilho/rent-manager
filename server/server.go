@@ -44,17 +44,17 @@ func main() {
 	// Data base init
 	dbFile := "rentmem.db"
 	// os.Remove(dbFile)
-	db, err = sql.Open("sqlite3", dbFile)
+	db, err = sql.Open("sqlite3", dbFile+"?cache=shared")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't open sqlite file")
 	}
 	db.SetMaxOpenConns(2)
 	defer db.Close()
 
-	err = initDataBase()
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("initDataBase error")
-	}
+	// err = initDB()
+	// if err != nil {
+	// 	log.Fatal().Stack().Err(err).Msg("initDataBase error")
+	// }
 
 	// Start server
 	e := echo.New()
@@ -110,6 +110,8 @@ func main() {
 	e.PUT("/cue/:id", putCue)
 	e.DELETE("/cue/:id", delCue)
 	e.POST("/pay/cue/:id", payCue)
+	e.GET("/initdb/:clear", initdb)
+	e.GET("/initdb", initdb)
 	// e.POST("/tenants", postTenant)
 	// e.GET("/tenants", getTenant)
 	// e.PUT("/tenants/:id", putTenant)
@@ -121,7 +123,9 @@ func main() {
 	// e.DELETE("/properties/:id", deleteProperty)
 
 	// e.POST("/rents", postRent)
+	executeScheduler()
 
+	// fmt.Print(time.Local)
 	port := os.Getenv("PORT")
 	e.Logger.Fatal(e.Start(port))
 }

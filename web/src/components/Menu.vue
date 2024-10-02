@@ -43,9 +43,9 @@ const items = ref([
     command: () => setBlock({})
   },
   {
-    label: 'Teste 1',
-    icon: 'pi pi-home',
-    command: () => router.push({ name:'teste1' })
+    label: 'Scheduler',
+    icon: 'pi pi-wrench',
+    command: () => router.push({ name:'scheduler' })
   },
   {
     label: 'Teste 2',

@@ -29,7 +29,6 @@
                 <label for="date">Date</label>
                 <DatePicker v-model="blockDate" :disabled="!isANewBlock && !edit" dateFormat="dd/mm/yy" inputId="date" />
               </FloatLabel>
-
             </div>
           </Fluid>
 
@@ -79,17 +78,26 @@ watch(visible, (n) => {
 });
 
 const removeTZ = (dateString) => {
-  let isoDate = new Date();
+  // let isoDate = new Date();
+  // if (dateString) {
+  //   isoDate = new Date(dateString);
+  // }
+  // // remove timezone offset
+  // isoDate.setMinutes(isoDate.getMinutes() + isoDate.getTimezoneOffset())
+  // return isoDate;
+  // // year selecting issue: https://github.com/primefaces/primevue/issues/6203
+  let utcDate = new Date();
   if (dateString) {
-    isoDate = new Date(dateString);
+    utcDate = new Date(dateString);
   }
-  // remove timezone offset
-  isoDate.setMinutes(isoDate.getMinutes() + isoDate.getTimezoneOffset())
-  return isoDate;
-  // year selecting issue: https://github.com/primefaces/primevue/issues/6203
+  utcDate.setUTCHours(utcDate.getHours(), utcDate.getMinutes(),0 ,0);
+  utcDate.setUTCDate(utcDate.getDate());
+  return utcDate;
 }
+
 const blockId = ref(props.block.id);
-const isPaid = ref(props.block.status > 1);
+// 0=pending, 1=due, 2=overdue, 3=paid
+const isPaid = ref(props.block.status === 3);
 const blockName = ref(props.block.name);
 const blockDate = ref(removeTZ(props.block.date));
 

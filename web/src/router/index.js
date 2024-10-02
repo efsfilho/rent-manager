@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from '../App.vue'
 import NewBlock from '../views/NewBlock.vue'
 import EditBlock from '../components/EditBlock.vue'
-import Teste1 from '../views/Teste1.vue'
+import Scheduler from '../views/Scheduler.vue'
 import Teste2 from '../views/Teste2.vue'
 import Dashboard from '../views/Dashboard.vue'
 
@@ -42,9 +42,9 @@ const router = createRouter({
       // }
     },
     {
-      name: 'teste1',
-      component: Teste1,
-      meta: { menuTitle: 'Teste1111'}
+      name: 'scheduler',
+      component: Scheduler,
+      meta: { menuTitle: 'Scheduler'}
     },
     {
       name: 'teste2',

@@ -33,8 +33,8 @@ import { ref, defineProps, onMounted} from 'vue';
 defineProps(['item']);
 const formatDate = (d) => (new Date(`${d}T00:00:00`)).toLocaleDateString('pt-BR')
 // HintedString<"error" | "secondary" | "info" | "success" | "warn" | "contrast">
-const getMessageStatus = (s) => ["info", "error", "success"][s];
-const getButtonStatus = (s) => ["info", "danger", "success"][s];
+const getMessageStatus = (s) => ["info", "warn", "error", "success"][s];
+const getButtonStatus = (s) => ["info", "warn", "danger", "success"][s];
 //   const status = ["info", "error", "success"];
 //   return "error" | "secondary" | "info" | "success" | "warn" | "contrast"
 // }

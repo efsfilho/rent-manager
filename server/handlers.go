@@ -1,11 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 )
+
+// TODO remove
+func initdb(c echo.Context) error {
+	idParam := c.Param("clear")
+	msg := "initDataBase()"
+	if idParam == "1" {
+		clearDB()
+		msg = "cue table cleared\n" + msg
+	}
+	err := initDB()
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("initDataBase error")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.String(http.StatusOK, msg)
+}
 
 func getCue(c echo.Context) error {
 	var cues []Cue
@@ -33,7 +51,12 @@ func postCue(c echo.Context) error {
 }
 
 func putCue(c echo.Context) error {
-	id := c.Param("id")
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 	var body map[string]map[string]interface{}
 	if err := c.Bind(&body); err != nil {
 		log.Error().Stack().Err(err).Msg("putCue")
@@ -46,7 +69,7 @@ func putCue(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	log.Debug().Str("path_param_id", id).Msg("")
+	log.Debug().Int64("path_param_id", id).Msg("")
 	log.Debug().Interface("request_body", data).Msg("")
 
 	if err := updateCue(id, data); err != nil {
@@ -58,7 +81,12 @@ func putCue(c echo.Context) error {
 }
 
 func delCue(c echo.Context) error {
-	id := c.Param("id")
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 	if err := removeCue(id); err != nil {
 		log.Error().Stack().Err(err).Msg("delCue")
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -68,8 +96,13 @@ func delCue(c echo.Context) error {
 }
 
 func payCue(c echo.Context) error {
-	id := c.Param("id")
-	if err := markCueAsPaid(id); err != nil {
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if err := changeCueStatus(id, paid); err != nil {
 		log.Error().Stack().Err(err).Msg("delCue")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
