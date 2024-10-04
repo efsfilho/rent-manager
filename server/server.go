@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"time"
 
 	"os"
 
@@ -109,7 +110,13 @@ func main() {
 	e.POST("/cue", postCue)
 	e.PUT("/cue/:id", putCue)
 	e.DELETE("/cue/:id", delCue)
+
 	e.POST("/pay/cue/:id", payCue)
+
+	e.POST("/checkDues", checkDues)
+	e.GET("/scheduler/history", getHistory)
+	// e.GET("/stats", getHistory)
+
 	e.GET("/initdb/:clear", initdb)
 	e.GET("/initdb", initdb)
 	// e.POST("/tenants", postTenant)
@@ -123,7 +130,7 @@ func main() {
 	// e.DELETE("/properties/:id", deleteProperty)
 
 	// e.POST("/rents", postRent)
-	executeScheduler()
+	executeScheduler(3 * time.Minute)
 
 	// fmt.Print(time.Local)
 	port := os.Getenv("PORT")

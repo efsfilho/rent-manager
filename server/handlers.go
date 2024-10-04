@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -108,6 +109,26 @@ func payCue(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusOK)
+}
+
+func checkDues(c echo.Context) error {
+	err := checkDueDates()
+	time.Sleep(3 * time.Second)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("checkDues")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.NoContent(http.StatusOK)
+}
+
+func getHistory(c echo.Context) error {
+	history, err := listSchedulerHistory()
+	time.Sleep(3 * time.Second)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getHistory")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, history)
 }
 
 // func postTenant(c echo.Context) error {

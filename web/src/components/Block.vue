@@ -29,7 +29,7 @@
 import Message from 'primevue/message';
 import Button from 'primevue/button';
 
-import { ref, defineProps, onMounted} from 'vue';
+import { ref, defineProps } from 'vue';
 defineProps(['item']);
 const formatDate = (d) => (new Date(`${d}T00:00:00`)).toLocaleDateString('pt-BR')
 // HintedString<"error" | "secondary" | "info" | "success" | "warn" | "contrast">

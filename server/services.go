@@ -556,6 +556,43 @@ func changeCueStatus(id int64, s status) error {
 	return nil
 }
 
+type schedulerHistory struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+func listSchedulerHistory() ([]schedulerHistory, error) {
+	history := []schedulerHistory{}
+
+	rows, err := db.Query("SELECT start_exec, end_exec FROM scheduler;")
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	defer rows.Close()
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open", db.Stats().OpenConnections).
+		Msg("listSchedulerHistory() / connections")
+	for rows.Next() {
+		var arg1, arg2 any
+		if err = rows.Scan(&arg1, &arg2); err != nil {
+			return nil, errors.Wrap(err, "")
+		}
+
+		start := ""
+		end := ""
+		if t1, ok := arg1.(time.Time); ok {
+			start = t1.Format(time.RFC3339)
+		}
+		if t2, ok := arg2.(time.Time); ok {
+			end = t2.Format(time.RFC3339)
+		}
+		history = append(history, schedulerHistory{start, end})
+	}
+
+	return history, nil
+}
+
 // var cuesStats = make(map[int]bool)
 
 func checkDiff() {
@@ -586,37 +623,38 @@ func checkDiff() {
 	// log.Info().Interface("cues", cuesStats).Msg("")
 }
 
-func checkDueDates() {
+func checkDueDates() error {
 	cues, err := listCue()
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("")
+		return errors.Wrap(err, "")
 	}
 	for _, cue := range cues {
 		cueDate, err := time.Parse(time.DateOnly, cue.Date)
 		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
+			return errors.Wrap(err, "")
 		}
 		now := time.Now()
 		now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 		if cueDate.Equal(now) && cue.Status == pending && cue.Status != due {
 			if err = changeCueStatus(cue.Id, due); err != nil {
-				log.Error().Stack().Err(err).Msg("")
+				return errors.Wrap(err, "")
 			}
 		} else if cueDate.Before(now) && cue.Status != paid && cue.Status != overdue {
 			if err = changeCueStatus(cue.Id, overdue); err != nil {
-				log.Error().Stack().Err(err).Msg("")
+				return errors.Wrap(err, "")
 			}
 		} else if cueDate.After(now) && cue.Status != paid && cue.Status != pending {
 			if err = changeCueStatus(cue.Id, pending); err != nil {
-				log.Error().Stack().Err(err).Msg("")
+				return errors.Wrap(err, "")
 			}
 		}
 	}
+	return nil
 }
 
-func executeScheduler() {
-	ticker := time.NewTicker(time.Hour)
+func executeScheduler(interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	go func() {
 		for {
 			select {
