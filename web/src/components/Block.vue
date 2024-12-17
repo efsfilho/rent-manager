@@ -11,7 +11,7 @@
     <template #container>
       <div class="h-44">
         <div class="flex justify-center truncate h-3/4">
-          <p class="mt-5">{{item.name}}</p>
+          <p class="mt-5">{{item.rent_name}}</p>
         </div>
         <div class="flex flex w-full justify-between">
           <div class="flex flex-row">

@@ -35,11 +35,17 @@
           <!-- <DatePicker id="datepicker-24h" v-model="datetime24h" showTime hourFormat="24" fluid /> -->
         </div>
       </div>
+      <div class="flex items-center gap-4">
+        <Button aria-label="Filter" label="10"/>
+        <Button severity="secondary" aria-label="Bookmark" label="20" />
+        <Button icon="pi pi-search" severity="success" aria-label="Search" />
+      </div>
 
       <template #footer>
         <div class="flex w-full justify-between ">
           <div class="flex gap-4">
-            <Button v-if="!isANewBlock && edit" label="Delete" severity="secondary" @click="remove()"/>
+            <Button v-if="!isANewBlock && edit" label="Delete" severity="danger" @click="remove()"/>
+            <Button v-if="!isANewBlock && !edit" label="Log" severity="info" @click="remove()"/>
           </div>
           <div class="flex gap-4">
             <Button v-if="!isANewBlock && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
@@ -97,13 +103,14 @@ const removeTZ = (dateString) => {
 
 const blockId = ref(props.block.id);
 // 0=pending, 1=due, 2=overdue, 3=paid
+// "info", "warn", "error", "success"
 const isPaid = ref(props.block.status === 3);
 const blockName = ref(props.block.name);
 const blockDate = ref(removeTZ(props.block.date));
 
-const createMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/cue', data) });
-const updateMutation = useMutation({ mutationFn: (data) => axios.put(app_address+'/cue/'+blockId.value, {data})});
-const deleteMutation = useMutation({ mutationFn: () => axios.delete(app_address+'/cue/'+blockId.value) });
+const createMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/rent', data) });
+const updateMutation = useMutation({ mutationFn: (data) => axios.put(app_address+'/rent/'+blockId.value, {data})});
+const deleteMutation = useMutation({ mutationFn: () => axios.delete(app_address+'/rent/'+blockId.value) });
 const payMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/pay/cue/'+blockId.value) });
 const queryClient = useQueryClient();
 const mutationOptions = {

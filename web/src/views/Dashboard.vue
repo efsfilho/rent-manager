@@ -3,9 +3,11 @@ import DataView from 'primevue/dataview';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Block from '../components/Block.vue';
+import ReminderViewer from '../components/ReminderViewer.vue';
 import axios from 'axios';
 import { useQueryClient, useQuery } from '@tanstack/vue-query';
-import { inject, } from 'vue';
+import { inject, ref } from 'vue';
+// import BlockLog from '../components/BlockLog.vue';
 
 const app_address = import.meta.env.VITE_APP_ADDRESS;
 
@@ -27,7 +29,9 @@ const { setBlock } = inject('openEditBlock')
 
 const getTodos = async() => {
   try {
-    return (await axios.get(app_address+'/cue')).data;
+    // return (await axios.get(app_address+'/cue')).data;
+    return (await axios.get(app_address+'/reminders')).data;
+    // return (await axios.get(app_address+'/rent')).data;
   } catch (error) {
     console.log(error);
   }
@@ -41,10 +45,26 @@ const { isLoading, isSuccess, isPending, isError, isFetching, data, error, refet
     console.log('ASFASFGGGGGGGGGGG>>>>', err)
   }
 }, queryClient);
+// const log = ref(true)
 
+// const teste = (d) => console.log(JSON.stringify(d))
+const reminder = ref({});
+const reminderVisible = ref(false);
+const showReminder = (show) => reminderVisible.value = show;
+const setReminder = (item) => {
+  reminder.value = item;
+  showReminder(true);
+}
 </script>
 <template>
   <div class="-mx-2">
+    <!-- <Button @click="() => log = !log">asdasd</Button>
+    <BlockLog
+      v-if="log"
+    /> -->
+    <ReminderViewer v-if="reminderVisible" :reminder="reminder" @close="showReminder(false)"></ReminderViewer>
+    <!-- <EditBlock v-if="editBlockVisible" :block=block @close="showEditBlock(false)"></EditBlock> -->
+
     <DataView :value="data" :layout="layout">
 
       <template #list="slotProps">
@@ -87,7 +107,7 @@ const { isLoading, isSuccess, isPending, isError, isFetching, data, error, refet
             <div v-for="(item, i) in slotProps.items" :key="i" class="p-2">
               <Block
                 :item="item"
-                @click="setBlock(item)"
+                @click="setReminder(item)"
                 class="p-4 min-h-52 flex flex-col"
               />
               <!-- <div class="p-4 border-2 surface-border surface-card rounded-md flex flex-col">

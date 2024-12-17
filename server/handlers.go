@@ -26,96 +26,132 @@ func initdb(c echo.Context) error {
 	return c.String(http.StatusOK, msg)
 }
 
-func getCue(c echo.Context) error {
-	var cues []Cue
-	cues, err := listCue()
+func getRent(c echo.Context) error {
+	rents, err := listRent()
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("getCue")
+		log.Error().Stack().Err(err).Msg("getRent")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	return c.JSON(http.StatusOK, cues)
+	return c.JSON(http.StatusOK, rents)
 }
 
-func postCue(c echo.Context) error {
-	var cue Cue
-	if err := c.Bind(&cue); err != nil {
-		log.Error().Stack().Err(err).Msg("postCue")
+func postRent(c echo.Context) error {
+	var rent Rent
+	if err := c.Bind(&rent); err != nil {
+		log.Error().Stack().Err(err).Msg("postRent")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
 	}
-
-	err := createCue(cue)
+	err := createRent(rent)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("postCue")
+		log.Error().Stack().Err(err).Msg("postRent")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
 }
 
-func putCue(c echo.Context) error {
+func putRent(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not valid, id : %v", id))
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	var body map[string]map[string]interface{}
 	if err := c.Bind(&body); err != nil {
-		log.Error().Stack().Err(err).Msg("putCue")
+		log.Error().Stack().Err(err).Msg("putRent")
 		return echo.NewHTTPError(http.StatusNotAcceptable)
 	}
-
 	data, ok := body["data"]
 	if !ok {
-		log.Error().Msgf("error handling request body at putCue() %v", body)
+		log.Error().Msgf("error handling request body at putRent() %v", body)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-
-	log.Debug().Int64("path_param_id", id).Msg("")
-	log.Debug().Interface("request_body", data).Msg("")
-
-	if err := updateCue(id, data); err != nil {
-		log.Error().Stack().Err(err).Msg("putCue")
+	log.Debug().
+		Int64("path_param_id", id).
+		Interface("request_body", data).
+		Msg("")
+	if err := updateRent(id, data); err != nil {
+		log.Error().Stack().Err(err).Msg("putRent")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-
 	return c.NoContent(http.StatusOK)
 }
 
-func delCue(c echo.Context) error {
+func delRent(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not valid, id : %v", id))
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	if err := removeCue(id); err != nil {
-		log.Error().Stack().Err(err).Msg("delCue")
+	if err := removeRent(id); err != nil {
+		log.Error().Stack().Err(err).Msg("delRent")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-
 	return c.NoContent(http.StatusOK)
 }
 
-func payCue(c echo.Context) error {
+func processRent(c echo.Context) error {
+	idParam := c.Param("id")
+	if idParam == "" {
+		idParam = "0"
+	}
+	rentId, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("rentId not valid, id : %v", rentId))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	err = createReminder(rentId)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getCue")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.NoContent(http.StatusOK)
+}
+
+func getReminderDetail(c echo.Context) error {
+	idParam := c.Param("id")
+	reminderId, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("reminderId not valid, id : %v", reminderId))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	reminders, err := listReminderDetail(reminderId)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getReminders")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, reminders)
+}
+
+func getReminders(c echo.Context) error {
+	reminders, err := listReminders(time.Now(), time.Now())
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getReminders")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, reminders)
+}
+
+func payRent(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not value, id : %v", id))
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not valid. id : %v", id))
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	if err := changeCueStatus(id, paid); err != nil {
-		log.Error().Stack().Err(err).Msg("delCue")
+	if err := changeReminderStatus(id, paid); err != nil {
+		log.Error().Stack().Err(err).Msg("payRent()")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-
 	return c.NoContent(http.StatusOK)
 }
 
-func checkDues(c echo.Context) error {
-	err := checkDueDates()
-	time.Sleep(3 * time.Second)
+func processReminders(c echo.Context) error {
+	err := processRemindersDates()
+	// time.Sleep(3 * time.Second)
 	if err != nil {
-		log.Error().Stack().Err(err).Msg("checkDues")
+		log.Error().Stack().Err(err).Msg("processReminders")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
@@ -123,13 +159,26 @@ func checkDues(c echo.Context) error {
 
 func getHistory(c echo.Context) error {
 	history, err := listSchedulerHistory()
-	time.Sleep(3 * time.Second)
+	// time.Sleep(3 * time.Second)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("getHistory")
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, history)
 }
+
+// func sstart(c echo.Context) error {
+// 	start()
+// 	return c.NoContent(http.StatusOK)
+// }
+// func sstop(c echo.Context) error {
+// 	stop()
+// 	return c.NoContent(http.StatusOK)
+// }
+// func test(c echo.Context) error {
+// 	str := sc()
+// 	return c.JSON(http.StatusOK, str)
+// }
 
 // func postTenant(c echo.Context) error {
 // 	tenant := Tenant{}

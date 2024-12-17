@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from '../App.vue'
 import NewBlock from '../views/NewBlock.vue'
 import EditBlock from '../components/EditBlock.vue'
+import List from '../views/List.vue'
 import Scheduler from '../views/Scheduler.vue'
 import Teste2 from '../views/Teste2.vue'
 import Dashboard from '../views/Dashboard.vue'
@@ -40,6 +41,11 @@ const router = createRouter({
       //   // You must set `true` to the default view, which uses ProductDetail
       //   default: true
       // }
+    },
+    {
+      name: 'list',
+      component: List,
+      meta: { menuTitle: 'T list df'}
     },
     {
       name: 'scheduler',

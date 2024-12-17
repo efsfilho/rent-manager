@@ -42,21 +42,25 @@ func main() {
 		log.Error().Stack().Err(err).Msg("Error while reading .env file")
 	}
 
+	renew := false
+	// renew = true
 	// Data base init
 	dbFile := "rentmem.db"
-	// os.Remove(dbFile)
+	if renew {
+		os.Remove(dbFile)
+	}
 	db, err = sql.Open("sqlite3", dbFile+"?cache=shared")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't open sqlite file")
 	}
 	db.SetMaxOpenConns(2)
 	defer db.Close()
-
-	// err = initDB()
-	// if err != nil {
-	// 	log.Fatal().Stack().Err(err).Msg("initDataBase error")
-	// }
-
+	if renew {
+		err = initDB()
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("initDataBase error")
+		}
+	}
 	// Start server
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
@@ -106,19 +110,27 @@ func main() {
 
 	// Routes
 	e.Static("/", "web")
-	e.GET("/cue", getCue)
-	e.POST("/cue", postCue)
-	e.PUT("/cue/:id", putCue)
-	e.DELETE("/cue/:id", delCue)
+	e.GET("/rent", getRent)
+	e.POST("/rent", postRent)
+	e.PUT("/rent/:id", putRent)
+	e.DELETE("/rent/:id", delRent)
 
-	e.POST("/pay/cue/:id", payCue)
+	e.POST("/process-rent/:id", processRent)
+	e.POST("/process-rent", processRent)
+	e.GET("/reminder-detail/:id", getReminderDetail)
+	e.GET("/reminders", getReminders)
+	e.POST("/pay/rent/:id", payRent)
+	e.POST("/process-reminders", processReminders)
 
-	e.POST("/checkDues", checkDues)
 	e.GET("/scheduler/history", getHistory)
 	// e.GET("/stats", getHistory)
 
 	e.GET("/initdb/:clear", initdb)
 	e.GET("/initdb", initdb)
+
+	// e.POST("/start", sstart)
+	// e.POST("/stop", sstop)
+	// e.POST("/test", test)
 	// e.POST("/tenants", postTenant)
 	// e.GET("/tenants", getTenant)
 	// e.PUT("/tenants/:id", putTenant)
@@ -130,7 +142,7 @@ func main() {
 	// e.DELETE("/properties/:id", deleteProperty)
 
 	// e.POST("/rents", postRent)
-	executeScheduler(3 * time.Minute)
+	executeScheduler(1 * time.Hour)
 
 	// fmt.Print(time.Local)
 	port := os.Getenv("PORT")

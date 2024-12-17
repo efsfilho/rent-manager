@@ -43,6 +43,11 @@ const items = ref([
     command: () => setBlock({})
   },
   {
+    label: 'List',
+    icon: 'pi pi-wrench',
+    command: () => router.push({ name:'list' })
+  },
+  {
     label: 'Scheduler',
     icon: 'pi pi-wrench',
     command: () => router.push({ name:'scheduler' })

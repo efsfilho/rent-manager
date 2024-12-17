@@ -1,12 +1,18 @@
 <template>
   <Panel>
-    <div class="grid gap-4 grid-cols-2 w-2/5">
+    <div class="grid gap-4 grid-cols-3 w-full">
       <Button label="Update" severity="secondary" @click="refetch()" :disabled="isFetching">
         <ProgressSpinner v-if="isFetching" style="width: 21px; height: 21px"/>
       </Button>
-      <Button label="Run check" severity="secondary" @click="check()" >
-        <ProgressSpinner v-if="isPending" style="width: 21px; height: 21px"/>
+      <Button label="Process Rents" severity="secondary" @click="processRentsMutation.mutate()">
+        <!-- <ProgressSpinner v-if="processRentsMutation.isIdle" style="width: 21px; height: 21px"/> -->
       </Button>
+      <Button label="Process Reminders" severity="secondary" @click="processRemindersMutation.mutate()">
+        <!-- <ProgressSpinner v-if="processRemindersMutation.isPending" style="width: 21px; height: 21px"/> -->
+      </Button>
+      <!-- <Button label="Run check" severity="secondary" @click="check()" >
+        <ProgressSpinner v-if="isPending" style="width: 21px; height: 21px"/>
+      </Button> -->
     </div>
     <div class="flex flex-row">
       <div class="basis-1/3">start</div>
@@ -30,8 +36,14 @@ import VirtualScroller from 'primevue/virtualscroller';
 import ProgressSpinner from 'primevue/progressspinner';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
+const processRentsMutation = useMutation({
+  mutationFn: () => axios.post(app_address+'/process-rent')
+});
+const processRemindersMutation = useMutation({
+  mutationFn: () => axios.post(app_address+'/process-reminders')
+});
 const { mutate, isPending } = useMutation({
-  mutationFn: () => axios.post(app_address+'/checkDues')
+  mutationFn: () => axios.post(app_address+'/process-reminders')
 });
 const { data, refetch, isFetching } = useQuery({
   queryKey: ['stats'],
