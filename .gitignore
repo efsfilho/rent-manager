@@ -30,6 +30,5 @@ web/node_modules
 web/.env
 *.sh
 .env
-Dockerfile
 *.sql
 *.db
