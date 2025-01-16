@@ -9,7 +9,6 @@ import { useQueryClient, useQuery } from '@tanstack/vue-query';
 import { inject, ref } from 'vue';
 // import BlockLog from '../components/BlockLog.vue';
 
-const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 const getSeverity = (product) => {
   switch (product.inventoryStatus) {
@@ -29,9 +28,13 @@ const { setBlock } = inject('openEditBlock')
 
 const getTodos = async() => {
   try {
-    // return (await axios.get(app_address+'/cue')).data;
-    return (await axios.get(app_address+'/reminders')).data;
-    // return (await axios.get(app_address+'/rent')).data;
+    // return (await axios.get('/reminders')).data;
+    let res =  (await axios.get('/reminders'))
+    if (res.status == 200 && Array.isArray(res.data)) {
+      return res.data
+    } else {
+      return []
+    }
   } catch (error) {
     console.log(error);
   }

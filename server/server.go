@@ -55,10 +55,14 @@ func main() {
 	}
 	db.SetMaxOpenConns(2)
 	defer db.Close()
+	err = initDb()
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("initDataBase error")
+	}
 	if renew {
-		err = initDB()
+		err = populateDb()
 		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("initDataBase error")
+			log.Fatal().Stack().Err(err).Msg("populate error")
 		}
 	}
 	// Start server
@@ -146,5 +150,5 @@ func main() {
 
 	// fmt.Print(time.Local)
 	port := os.Getenv("PORT")
-	e.Logger.Fatal(e.Start(port))
+	e.Logger.Fatal(e.Start(":" + port))
 }

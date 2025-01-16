@@ -18,7 +18,7 @@ func initdb(c echo.Context) error {
 		clearDB()
 		msg = "cue table cleared\n" + msg
 	}
-	err := initDB()
+	err := initDb()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("initDataBase error")
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -125,7 +125,7 @@ func getReminderDetail(c echo.Context) error {
 }
 
 func getReminders(c echo.Context) error {
-	reminders, err := listReminders(time.Now(), time.Now())
+	reminders, err := listReminders(0, time.Now(), time.Now())
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("getReminders")
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -148,7 +148,7 @@ func payRent(c echo.Context) error {
 }
 
 func processReminders(c echo.Context) error {
-	err := processRemindersDates()
+	err := processRemindersDates(0)
 	// time.Sleep(3 * time.Second)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("processReminders")

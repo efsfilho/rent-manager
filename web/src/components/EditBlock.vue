@@ -1,7 +1,7 @@
 <template>
   <div class="grid justify-items-center">
-    
-    <Dialog v-model:visible="visible"  modal header="Edit Profile" :style="{ width: '25rem' }">
+    <Dialog v-model:visible="visible" modal header="Edit Profile" :style="{ width: '25rem' }">
+      <!-- <ReminderLog v-if="logVisible" ></ReminderLog> -->
       <template #header>
         <div class="inline-flex items-center justify-center gap-2">
           <span v-if="isANewBlock || edit" class="font-bold whitespace-nowrap">{{ isANewBlock ? 'New': 'Edit' }}</span>
@@ -40,12 +40,12 @@
         <Button severity="secondary" aria-label="Bookmark" label="20" />
         <Button icon="pi pi-search" severity="success" aria-label="Search" />
       </div>
-
+      <ReminderLog v-if="logVisible" ></ReminderLog>
       <template #footer>
         <div class="flex w-full justify-between ">
           <div class="flex gap-4">
             <Button v-if="!isANewBlock && edit" label="Delete" severity="danger" @click="remove()"/>
-            <Button v-if="!isANewBlock && !edit" label="Log" severity="info" @click="remove()"/>
+            <Button v-if="!isANewBlock && !edit" label="Log" severity="info" @click="() => logVisible = !logVisible"/>
           </div>
           <div class="flex gap-4">
             <Button v-if="!isANewBlock && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
@@ -60,6 +60,7 @@
   </div>
 </template>
 <script setup>
+import ReminderLog from './ReminderLog.vue';
 import InputText from 'primevue/inputtext';
 import FloatLabel from 'primevue/floatlabel';
 import Button from "primevue/button";
@@ -71,13 +72,12 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { ref, defineEmits, watch, computed,  } from 'vue';
 
-const app_address = import.meta.env.VITE_APP_ADDRESS;
-
 const emit = defineEmits(['close']);
 const props = defineProps(['block']);
 const isANewBlock = ref(!props.block.id);
 const edit = ref(false);
 const visible = ref(true);
+const logVisible = ref(true);
 watch(visible, (n) => {
   if (!n) 
     emit('close');
@@ -108,10 +108,10 @@ const isPaid = ref(props.block.status === 3);
 const blockName = ref(props.block.name);
 const blockDate = ref(removeTZ(props.block.date));
 
-const createMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/rent', data) });
-const updateMutation = useMutation({ mutationFn: (data) => axios.put(app_address+'/rent/'+blockId.value, {data})});
-const deleteMutation = useMutation({ mutationFn: () => axios.delete(app_address+'/rent/'+blockId.value) });
-const payMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/pay/cue/'+blockId.value) });
+const createMutation = useMutation({ mutationFn: (data) => axios.post('/rent', data) });
+const updateMutation = useMutation({ mutationFn: (data) => axios.put('/rent/'+blockId.value, {data})});
+const deleteMutation = useMutation({ mutationFn: () => axios.delete('/rent/'+blockId.value) });
+const payMutation = useMutation({ mutationFn: (data) => axios.post('/pay/cue/'+blockId.value) });
 const queryClient = useQueryClient();
 const mutationOptions = {
   onSuccess: () => emit('close'),

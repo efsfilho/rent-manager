@@ -104,8 +104,6 @@ import axios from 'axios';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/vue-query';
 import { ref, watch, computed,  } from 'vue';
 
-const app_address = import.meta.env.VITE_APP_ADDRESS;
-
 const emit = defineEmits(['close']);
 const props = defineProps(['reminder']);
 const edit = ref(false);
@@ -138,7 +136,7 @@ const detail = useQuery({
   queryKey: ['reminderDetail'],
   queryFn: async() => {
     try {
-      return (await axios.get(app_address+'/reminder-detail/'+props.reminder.id)).data;
+      return (await axios.get('/reminder-detail/'+props.reminder.id)).data;
     } catch (error) {
       console.log(error);
     }
@@ -151,7 +149,7 @@ const detail = useQuery({
 // const createMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/rent', data) });
 // const updateMutation = useMutation({ mutationFn: (data) => axios.put(app_address+'/rent/'+reminderId.value, {data})});
 // const deleteMutation = useMutation({ mutationFn: () => axios.delete(app_address+'/rent/'+reminderId.value) });
-const payMutation = useMutation({ mutationFn: (data) => axios.post(app_address+'/pay/rent/'+reminderId.value) });
+const payMutation = useMutation({ mutationFn: (data) => axios.post('/pay/rent/'+reminderId.value) });
 // const queryClient = useQueryClient();
 const mutationOptions = {
   onSuccess: () => emit('close'),

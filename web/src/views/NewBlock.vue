@@ -28,10 +28,9 @@ import { useRouter, useRoute } from 'vue-router';
 const router = useRouter();
 
 import { useQueryClient, useQuery, useMutation } from '@tanstack/vue-query';
-const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 const { isPending, isSuccess, mutate } = useMutation({
-  mutationFn: (newTodo) => axios.post(app_address+'/cue', newTodo),
+  mutationFn: (newTodo) => axios.post('/cue', newTodo),
   onSuccess: () => {
     blockText.value = '';
     router.push({ name:'home' });

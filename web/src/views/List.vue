@@ -36,9 +36,6 @@ import axios from 'axios';
 import { useQueryClient, useQuery } from '@tanstack/vue-query';
 import { inject } from 'vue';
 // import BlockLog from '../components/BlockLog.vue';
-
-const app_address = import.meta.env.VITE_APP_ADDRESS;
-
 // const getSeverity = (product) => {
 //   switch (product.inventoryStatus) {
 //     case 'INSTOCK':
@@ -57,7 +54,7 @@ const { setBlock } = inject('openEditBlock')
 
 const getTodos = async() => {
   try {
-    return (await axios.get(app_address+'/rent')).data;
+    return (await axios.get('/rent')).data;
   } catch (error) {
     console.log(error);
   }

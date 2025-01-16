@@ -1,16 +1,14 @@
 <template>
   <div class="grid justify-items-center">
-    <Dialog v-model:visible="visible"  modal :style="{ width: '25rem' }">
+    <!-- <Dialog v-model:visible="visible" modal :style="{ width: '25rem' }"> -->
+      <!-- <Dialog v-model:visible="visible"  modal header="Edit Profile" :style="{ width: '25rem' }"></Dialog> -->
 
-      <div class="">
-      <!-- <div class="flex w-full justify-between "> -->
+      <!-- <div class="">
         <DataTable :value="logs" scrollable scrollHeight="500px" >
             <Column field="date" header="Name" style="width: 20%"></Column>
             <Column field="log" header="Country"></Column>
-            <!-- <Column field="representative.name" header="Representative"></Column>
-            <Column field="company" header="Company"></Column> -->
         </DataTable>
-      </div>
+      </div> -->
 
       <!-- <template #footer>
         <div class="flex w-full justify-between ">
@@ -26,7 +24,24 @@
           </div>
         </div>
       </template> -->
-    </Dialog>
+      <div class="card m-4 ">
+      <Fieldset legend="Teste 2">
+        <p class="m-0">-</p>
+        <p class="m-0">
+          Source map error: No sources are declared in this source map.
+          Resource URL: http://localhost:5173/node_modules/.vite/deps/primevue_button.js?v=385cb750
+          Source Map URL: primevue_button.js.map
+        </p>
+        <p class="m-0">-</p>
+        <p class="m-0">-</p>
+        <p class="m-0">
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+          
+        </p>
+        <p class="m-0">-</p>
+      </Fieldset>
+    </div>
+    <!-- </Dialog> -->
 
   </div>
 </template>
@@ -43,8 +58,6 @@ import DatePicker from 'primevue/datepicker';
 import axios from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { ref, defineEmits, watch, computed, onMounted  } from 'vue';
-
-const app_address = import.meta.env.VITE_APP_ADDRESS;
 
 const emit = defineEmits(['close']);
 const props = defineProps(['block']);

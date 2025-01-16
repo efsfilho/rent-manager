@@ -18,7 +18,7 @@ COPY ./web /tmp/web
 
 WORKDIR /tmp/web
 # creates /tmp/web/dist
-RUN rm .env
+RUN rm -f .env
 RUN npm install && npm run build
 
 WORKDIR /tmp/server
@@ -41,7 +41,7 @@ RUN cp -r /tmp/web/dist/ ./web
 # VOLUME ["${EZNVR_STORAGE}"]
 
 
-ENV PORT=5000
+ENV PORT=3000
 
 # ENV MONGODB_URI=""
 

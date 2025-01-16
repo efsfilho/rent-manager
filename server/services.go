@@ -190,7 +190,7 @@ func clearDB() error {
 	return nil
 }
 
-func initDB() error {
+func initDb() error {
 	qry := `
 		CREATE TABLE IF NOT EXISTS rent (
 			id 		INTEGER
@@ -263,59 +263,62 @@ func initDB() error {
 	}
 
 	qry = `
-	CREATE TABLE IF NOT EXISTS log_cue_register (
-		id integer not null primary key AUTOINCREMENT,
-		row_id integer not null,
-		old_active BOOLEAN,
-		new_active BOOLEAN,
-		old_status INTEGER,
-		new_status INTEGER,
-		old_name TEXT not null,
-		new_name TEXT not null,
-		old_date TEXT not null,
-		new_date TEXT not null,
-		change_type TEXT not null,
-		created_at NUMERIC not null
-	);
+		CREATE TABLE IF NOT EXISTS log_cue_register (
+			id integer not null primary key AUTOINCREMENT,
+			row_id integer not null,
+			old_active BOOLEAN,
+			new_active BOOLEAN,
+			old_status INTEGER,
+			new_status INTEGER,
+			old_name TEXT not null,
+			new_name TEXT not null,
+			old_date TEXT not null,
+			new_date TEXT not null,
+			change_type TEXT not null,
+			created_at NUMERIC not null
+		);
 	`
 	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "trigger not created")
 	}
 	qry = `
-	CREATE TRIGGER IF NOT EXISTS log_cue_register_after_update 
-	AFTER UPDATE ON rent
-		WHEN old.name <> new.name
-			OR old.active <> new.active
-			OR old.date <> new.date
-	BEGIN
-		insert into log_cue_register (
-			row_id,
-			old_active,
-			new_active,
-			old_name,
-			new_name,
-			old_date,
-			new_date,
-			change_type,
-			created_at
-		) 
-		values (
-			old.id,
-			old.active,
-			new.active,
-			old.name,
-			new.name,
-			old.date,
-			new.date,
-			'UPDATE',
-			strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
-		);
-	END;
+		CREATE TRIGGER IF NOT EXISTS log_cue_register_after_update 
+		AFTER UPDATE ON rent
+			WHEN old.name <> new.name
+				OR old.active <> new.active
+				OR old.date <> new.date
+		BEGIN
+			insert into log_cue_register (
+				row_id,
+				old_active,
+				new_active,
+				old_name,
+				new_name,
+				old_date,
+				new_date,
+				change_type,
+				created_at
+			) 
+			values (
+				old.id,
+				old.active,
+				new.active,
+				old.name,
+				new.name,
+				old.date,
+				new.date,
+				'UPDATE',
+				strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
+			);
+		END;
 	`
 	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "tr4igger not created")
 	}
+	return nil
+}
 
+func populateDb() error {
 	// stmt, err := db.Prepare("INSERT INTO cue (active, name, dt) VALUES (?, ?, ?)")
 	stmt, err := db.Prepare("INSERT INTO rent (active, name, date) VALUES (?, ?, ?)")
 	if err != nil {
@@ -361,7 +364,7 @@ func initDB() error {
 		return errors.Wrap(err, "trigger not created")
 	}
 
-	qry = `
+	qry := `
 	CREATE TABLE IF NOT EXISTS scheduler (
 		id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
 		start_exec DATETIME,
@@ -428,16 +431,23 @@ func createRent(rent Rent) error {
 		Int("in_use", db.Stats().InUse).
 		Int("open_connections", db.Stats().OpenConnections).
 		Msg("createRent()")
-	id, err := result.LastInsertId()
+	rentId, err := result.LastInsertId()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	log.Info().Msgf("new rent. id: %d", id)
-	err = createReminder(id)
+	log.Info().Msgf("new rent. id: %d", rentId)
+	err = createReminder(rentId)
 	if err != nil {
 		log.Warn().
 			Err(err).
 			Msg("createRent() > createReminder()")
+	}
+	err = processRemindersDates(rentId)
+	// time.Sleep(3 * time.Second)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("createRent() > processRemindersDates()")
 	}
 	return nil
 }
@@ -755,7 +765,7 @@ func listReminderDetail(reminderId int64) ([]RentReminder, error) {
 	return reminders, nil
 }
 
-func listReminders(monthStart time.Time, monthEnd time.Time) ([]RentReminder, error) {
+func listReminders(rentId int64, monthStart time.Time, monthEnd time.Time) ([]RentReminder, error) {
 	monthStart, _ = getFirstLastDayOfMonth(monthStart)
 	_, monthEnd = getFirstLastDayOfMonth(monthEnd)
 	qryStart := monthStart.Format(time.DateOnly)
@@ -777,12 +787,16 @@ func listReminders(monthStart time.Time, monthEnd time.Time) ([]RentReminder, er
 			AND ?
 			AND reminder.active
 	`
+	if rentId > 0 {
+		qry += "AND rent.id = ? "
+	}
+
 	log.Debug().
 		Str("start", qryStart).
 		Str("end", qryEnd).
 		Msg("query params")
 
-	rows, err := db.Query(qry, qryStart, qryEnd)
+	rows, err := db.Query(qry, qryStart, qryEnd, rentId)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
@@ -872,9 +886,9 @@ func changeReminderStatus(id int64, s status) error {
 	return nil
 }
 
-func processRemindersDates() error {
+func processRemindersDates(rentId int64) error {
 	// reminders, err := listReminders(time.Now(), time.Now())
-	reminders, err := listReminders(time.Now().AddDate(0, -10, 0), time.Now())
+	reminders, err := listReminders(rentId, time.Now().AddDate(0, -10, 0), time.Now())
 	// rents, err := listRent()
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -1040,7 +1054,7 @@ func executeScheduler(interval time.Duration) {
 						log.Error().Stack().Err(err).Msg("")
 					}
 
-					processRemindersDates()
+					processRemindersDates(0)
 
 					_, err = dbExec("UPDATE scheduler SET end_exec = ? WHERE id = ?;", time.Now().Format(sqliteLayout), scheduler_id)
 					if err != nil {

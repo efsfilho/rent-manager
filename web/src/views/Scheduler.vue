@@ -29,7 +29,6 @@
   </Panel>
 </template>
 <script setup>
-const app_address = import.meta.env.VITE_APP_ADDRESS;
 import Panel from 'primevue/panel'
 import Button from 'primevue/button';
 import VirtualScroller from 'primevue/virtualscroller';
@@ -37,17 +36,17 @@ import ProgressSpinner from 'primevue/progressspinner';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 const processRentsMutation = useMutation({
-  mutationFn: () => axios.post(app_address+'/process-rent')
+  mutationFn: () => axios.post('/process-rent')
 });
 const processRemindersMutation = useMutation({
-  mutationFn: () => axios.post(app_address+'/process-reminders')
+  mutationFn: () => axios.post('/process-reminders')
 });
 const { mutate, isPending } = useMutation({
-  mutationFn: () => axios.post(app_address+'/process-reminders')
+  mutationFn: () => axios.post('/process-reminders')
 });
 const { data, refetch, isFetching } = useQuery({
   queryKey: ['stats'],
-  queryFn: async () => (await axios.get(app_address+'/scheduler/history')).data
+  queryFn: async () => (await axios.get('/scheduler/history')).data
 });
 const dateFormat = (d) => {
   return !d ? "" : new Date(d).toLocaleString("pt-BR")
