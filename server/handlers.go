@@ -26,15 +26,6 @@ func initdb(c echo.Context) error {
 	return c.String(http.StatusOK, msg)
 }
 
-func getRent(c echo.Context) error {
-	rents, err := listRent()
-	if err != nil {
-		log.Error().Stack().Err(err).Msg("getRent")
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, rents)
-}
-
 func postRent(c echo.Context) error {
 	var rent Rent
 	if err := c.Bind(&rent); err != nil {
@@ -47,6 +38,15 @@ func postRent(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
+}
+
+func getRent(c echo.Context) error {
+	rents, err := listRent()
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getRent")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, rents)
 }
 
 func putRent(c echo.Context) error {
@@ -89,6 +89,22 @@ func delRent(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
+}
+
+func getRentHistory(c echo.Context) error {
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg(fmt.Sprintf("id not valid, id : %v", id))
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	// time.Sleep(5 * time.Second)
+	logs, err := listRentHystory(id)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("getRentHistory")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, logs)
 }
 
 func processRent(c echo.Context) error {

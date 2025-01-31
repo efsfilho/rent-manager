@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"math/rand/v2"
 	"strings"
 	"time"
@@ -15,19 +16,24 @@ import (
 
 type Operation int8
 
-const (
-	OperationAdd    Operation = 0
-	OperationUpdate Operation = 1
-	OperationDelete Operation = 2
-)
+// const (
+// 	OperationAdd    Operation = 0
+// 	OperationUpdate Operation = 1
+// 	OperationDelete Operation = 2
+// )
+
+// type Log struct {
+// 	Operation Operation
+// 	Log       string
+// 	NewValue  string
+// 	OldValue  string
+// 	date      time.Time
+// 	// User            int32
+// }
 
 type Log struct {
-	Operation Operation
-	Log       string
-	NewValue  string
-	OldValue  string
-	date      time.Time
-	// User            int32
+	Date string `json:"date"`
+	Text string `json:"text"`
 }
 
 type status int8
@@ -196,125 +202,135 @@ func initDb() error {
 			id 		INTEGER
 					NOT NULL
 					PRIMARY KEY AUTOINCREMENT,
-
 			active 	BOOLEAN
 					DEFAULT TRUE,
-
 			done 	BOOLEAN 
 					DEFAULT FALSE,
-
 			--status 	INTEGER
 			--		NOT NULL
 			--		DEFAULT 0
 			--		CHECK(status >= 0 AND status <= 3), -- 0=pending, 1=due, 2=overdue, 3=paid
-
 			name 	TEXT
 					NOT NULL,
-
 			date 	TEXT
 					DEFAULT (DATE('0', 'unixepoch'))
 					CHECK(length(date) == 10),
-
 			created_at NUMERIC
 					DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
-		)`
+		)
+	`
 	// date NUMERIC DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime'))
 	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "cue_register table not created")
+		return errors.Wrap(err, "rent table not created")
 	}
 
 	qry = `
 		CREATE TABLE IF NOT EXISTS reminder (
 			id		INTEGER
 					NOT NULL
-					PRIMARY KEY AUTOINCREMENT,
-
+					PRIMARY KEY 
+					AUTOINCREMENT,
 			active 	BOOLEAN
 					DEFAULT TRUE,
-
 			status 	INTEGER
 					NOT NULL
 					DEFAULT 0
 					CHECK(status >= 0 AND status <= 3), -- 0=pending, 1=due, 2=overdue, 3=paid
-
 			date 	TEXT
 					DEFAULT (DATE('0', 'unixepoch'))
 					CHECK(length(date) == 10),
-
 			id_rent
 					INTEGER
 					NOT NULL,
-
 			FOREIGN KEY(id_rent) REFERENCES rent(id)
 		)
 	`
 	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "cue table not created")
+		return errors.Wrap(err, "reminder table not created")
 	}
 
+	// qry = `
+	// 	CREATE TABLE IF NOT EXISTS log (
+	// 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	// 		date NUMERIC,
+	// 		log TEXT
+	// 	)`
 	qry = `
-		CREATE TABLE IF NOT EXISTS log (
-			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-			date NUMERIC,
-			log TEXT
-		)`
+		CREATE TABLE IF NOT EXISTS rent_log (
+			id		INTEGER 
+					NOT NULL 
+					PRIMARY KEY
+					AUTOINCREMENT,
+			-- date 	TEXT
+			--		DEFAULT (DATE('0', 'unixepoch'))
+			--		CHECK(length(date) == 10),
+			date	NUMERIC
+					DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+			log 	TEXT,
+			id_rent INTEGER
+					NOT NULL,
+			FOREIGN KEY(id_rent) REFERENCES rent(id)
+			-- table	TEXT,
+			-- rowId 	INTEGER,
+		)
+	`
 	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "log not created")
+		return errors.Wrap(err, "rent_log not created")
 	}
 
-	qry = `
-		CREATE TABLE IF NOT EXISTS log_cue_register (
-			id integer not null primary key AUTOINCREMENT,
-			row_id integer not null,
-			old_active BOOLEAN,
-			new_active BOOLEAN,
-			old_status INTEGER,
-			new_status INTEGER,
-			old_name TEXT not null,
-			new_name TEXT not null,
-			old_date TEXT not null,
-			new_date TEXT not null,
-			change_type TEXT not null,
-			created_at NUMERIC not null
-		);
-	`
-	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "trigger not created")
-	}
-	qry = `
-		CREATE TRIGGER IF NOT EXISTS log_cue_register_after_update 
-		AFTER UPDATE ON rent
-			WHEN old.name <> new.name
-				OR old.active <> new.active
-				OR old.date <> new.date
-		BEGIN
-			insert into log_cue_register (
-				row_id,
-				old_active,
-				new_active,
-				old_name,
-				new_name,
-				old_date,
-				new_date,
-				change_type,
-				created_at
-			) 
-			values (
-				old.id,
-				old.active,
-				new.active,
-				old.name,
-				new.name,
-				old.date,
-				new.date,
-				'UPDATE',
-				strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
-			);
-		END;
-	`
-	if _, err := db.Exec(qry); err != nil {
-		return errors.Wrap(err, "tr4igger not created")
-	}
+	// qry = `
+	// 	CREATE TABLE IF NOT EXISTS log_cue_register (
+	// 		id integer not null primary key AUTOINCREMENT,
+	// 		row_id integer not null,
+	// 		old_active BOOLEAN,
+	// 		new_active BOOLEAN,
+	// 		old_status INTEGER,
+	// 		new_status INTEGER,
+	// 		old_name TEXT not null,
+	// 		new_name TEXT not null,
+	// 		old_date TEXT not null,
+	// 		new_date TEXT not null,
+	// 		change_type TEXT not null,
+	// 		created_at NUMERIC not null
+	// 	);
+	// `
+	// if _, err := db.Exec(qry); err != nil {
+	// 	return errors.Wrap(err, "trigger not created")
+	// }
+	// qry = `
+	// 	CREATE TRIGGER IF NOT EXISTS log_cue_register_after_update
+	// 	AFTER UPDATE ON rent
+	// 		WHEN old.name <> new.name
+	// 			OR old.active <> new.active
+	// 			OR old.date <> new.date
+	// 	BEGIN
+	// 		insert into log_cue_register (
+	// 			row_id,
+	// 			old_active,
+	// 			new_active,
+	// 			old_name,
+	// 			new_name,
+	// 			old_date,
+	// 			new_date,
+	// 			change_type,
+	// 			created_at
+	// 		)
+	// 		values (
+	// 			old.id,
+	// 			old.active,
+	// 			new.active,
+	// 			old.name,
+	// 			new.name,
+	// 			old.date,
+	// 			new.date,
+	// 			'UPDATE',
+	// 			strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')
+	// 		);
+	// 	END;
+	// `
+	// if _, err := db.Exec(qry); err != nil {
+	// 	return errors.Wrap(err, "tr4igger not created")
+	// }
 	return nil
 }
 
@@ -379,19 +395,48 @@ func populateDb() error {
 	return nil
 }
 
-func saveLog() {
-	// CREATE TABLE IF NOT EXISTS log (
-	// 	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	//  table TEXT,
-	//  rowId INTEGER
-	// 	date NUMERIC,
-	// 	log TEXT
-	// )`
-	qry := "INSERT INTO log () VALUES ();"
-	if _, err := db.Exec(qry); err != nil {
+func saveRentLog(rentId int64, msg string) {
+	qry := "INSERT INTO rent_log(id_rent, log) VALUES (?, ?);"
+	if _, err := db.Exec(qry, rentId, msg); err != nil {
 		log.Error().Stack().Err(err).Msg("log error")
-		// return err
 	}
+}
+
+func createRent(rent Rent) error {
+	log.Debug().Interface("rent", rent).Msg("createRent()")
+	parsedDate, err := parseIsoDateTime(rent.Date)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	qry := "INSERT INTO rent (active, name, date) VALUES (TRUE, ?, ?)"
+	result, err := db.Exec(qry, rent.Name, parsedDate.Format(time.DateOnly))
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open_connections", db.Stats().OpenConnections).
+		Msg("createRent()")
+	rentId, err := result.LastInsertId()
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	log.Info().Msgf("new rent. id: %d", rentId)
+
+	saveRentLog(rentId, fmt.Sprintf("created: %v - %v", rent.Name, parsedDate.Format(time.DateOnly)))
+	err = createReminder(rentId)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("createRent() > createReminder()")
+	}
+	err = processRemindersDates(rentId)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("createRent() > processRemindersDates()")
+	}
+	return nil
 }
 
 func listRent() ([]Rent, error) {
@@ -416,42 +461,6 @@ func listRent() ([]Rent, error) {
 	return rents, nil
 }
 
-func createRent(rent Rent) error {
-	log.Debug().Interface("rent", rent).Msg("createRent()")
-	parsedDate, err := parseIsoDateTime(rent.Date)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	qry := "INSERT INTO rent (active, name, date) VALUES (TRUE, ?, ?)"
-	result, err := db.Exec(qry, rent.Name, parsedDate.Format(time.DateOnly))
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Debug().
-		Int("in_use", db.Stats().InUse).
-		Int("open_connections", db.Stats().OpenConnections).
-		Msg("createRent()")
-	rentId, err := result.LastInsertId()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	log.Info().Msgf("new rent. id: %d", rentId)
-	err = createReminder(rentId)
-	if err != nil {
-		log.Warn().
-			Err(err).
-			Msg("createRent() > createReminder()")
-	}
-	err = processRemindersDates(rentId)
-	// time.Sleep(3 * time.Second)
-	if err != nil {
-		log.Warn().
-			Err(err).
-			Msg("createRent() > processRemindersDates()")
-	}
-	return nil
-}
-
 func parseIsoDateTime(dt interface{}) (time.Time, error) {
 	v, ok := dt.(string)
 	if !ok {
@@ -472,7 +481,7 @@ func parseIsoDateTime(dt interface{}) (time.Time, error) {
 	return dtParsed, nil
 }
 
-func updateRent(id int64, newValues map[string]interface{}) error {
+func updateRent(rentId int64, newValues map[string]interface{}) error {
 	var queryColumns []string
 	var queryValues []any
 	var allowedFields []string = []string{"status", "name", "date", "dt"}
@@ -498,20 +507,27 @@ func updateRent(id int64, newValues map[string]interface{}) error {
 			}
 		}
 	}
-	queryValues = append(queryValues, id)
+	var logValues []string
+	for _, v := range queryValues {
+		logValues = append(logValues, v.(string))
+	}
+	queryValues = append(queryValues, rentId)
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "db.Begin()")
 	}
-	defer tx.Commit()
+	// defer tx.Commit()
 
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open_connections", db.Stats().OpenConnections).
 		Msg("updateRent()")
-
-	qry := "UPDATE rent SET " + strings.Join(queryColumns, ", ") + " WHERE id = ? AND active = TRUE;"
-
+	qry := `
+		UPDATE rent 
+		SET ` + strings.Join(queryColumns, ", ") + `
+		WHERE id = ? 
+		  AND active = TRUE;
+	`
 	log.Debug().Stack().Str("query_prepared", qry).Msg("")
 	log.Debug().Interface("query_values", queryValues).Msg("")
 
@@ -519,7 +535,7 @@ func updateRent(id int64, newValues map[string]interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	defer stmt.Close()
+	// defer stmt.Close()
 	res, err := stmt.Exec(queryValues...)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -536,10 +552,13 @@ func updateRent(id int64, newValues map[string]interface{}) error {
 		log.Info().Msg("update not concluded. rollback executed.")
 		return errors.New("an error occur while updating")
 	}
+	defer saveRentLog(rentId, fmt.Sprintf("updated: %v", strings.Join(logValues, " - ")))
+	defer stmt.Close()
+	defer tx.Commit()
 	return nil
 }
 
-func removeRent(id int64) error {
+func removeRent(rentId int64) error {
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open_connections", db.Stats().OpenConnections).
@@ -550,7 +569,7 @@ func removeRent(id int64) error {
 		SET active = FALSE
 		WHERE id = ?;
 	`
-	res, err := db.Exec(qry, id)
+	res, err := db.Exec(qry, rentId)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -561,17 +580,18 @@ func removeRent(id int64) error {
 	if count != 1 {
 		log.Info().Msgf("rowsAffected: %d - rent not updated.", count)
 	} else {
-		log.Info().Msgf("rowsAffected: %d - rent removed. id: %d", count, id)
+		log.Info().Msgf("rowsAffected: %d - rent removed. id: %d", count, rentId)
+		saveRentLog(rentId, "deleted")
 	}
 
 	qry = `
 		UPDATE reminder
 		SET active = FALSE
 		WHERE id_rent = ?
-			AND date >= ?;
+		  AND date >= ?;
 	`
 	firstDayOfMonth, _ := getFirstLastDayOfMonth(time.Now())
-	res, err = db.Exec(qry, id, firstDayOfMonth.Format(time.DateOnly))
+	res, err = db.Exec(qry, rentId, firstDayOfMonth.Format(time.DateOnly))
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
@@ -582,10 +602,32 @@ func removeRent(id int64) error {
 	if count != 1 {
 		log.Info().Msgf("rowsAffected: %d - reminder not updated.", count)
 	} else {
-		log.Info().Msgf("rowsAffected: %d - reminder removed. id_rent: %d", count, id)
+		log.Info().Msgf("rowsAffected: %d - reminder removed. id_rent: %d", count, rentId)
 	}
 
 	return nil
+}
+
+func listRentHystory(rentId int64) ([]Log, error) {
+	logs := []Log{}
+	rows, err := db.Query("SELECT date, log FROM rent_log WHERE id_rent = ?;", rentId)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	defer rows.Close()
+	log.Debug().
+		Int("in_use", db.Stats().InUse).
+		Int("open_connections", db.Stats().OpenConnections).
+		Msg("listRentHystory()")
+	for rows.Next() {
+		rentLog := Log{}
+		err = rows.Scan(&(rentLog.Date), &(rentLog.Text))
+		if err != nil {
+			return nil, errors.Wrap(err, "")
+		}
+		logs = append(logs, rentLog)
+	}
+	return logs, nil
 }
 
 func getFirstLastDayOfMonth(date time.Time) (firstDay time.Time, lastDay time.Time) {
@@ -810,8 +852,6 @@ func listReminders(rentId int64, monthStart time.Time, monthEnd time.Time) ([]Re
 	var reminders []RentReminder
 	for rows.Next() {
 		reminder := RentReminder{}
-		// prev_reminders := []RentReminder{}
-		// reminder.PrevReminders = prev_reminders
 		err = rows.Scan(
 			&(reminder.Id),
 			&(reminder.Status),
@@ -828,61 +868,45 @@ func listReminders(rentId int64, monthStart time.Time, monthEnd time.Time) ([]Re
 }
 
 func changeReminderStatus(id int64, s status) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	defer tx.Commit()
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open_connections", db.Stats().OpenConnections).
 		Msg("changeReminderStatus()")
-	stmt, err := tx.Prepare("UPDATE reminder SET status = :status WHERE id = :id AND status <> :status ;")
-	// stmt, err := tx.Prepare("UPDATE reminder SET status = 2 WHERE id = 1;")
-	if err != nil {
-		return errors.Wrap(err, "")
+
+	qry := `
+		UPDATE reminder 
+		SET status = :status 
+		WHERE id = :id 
+		  AND status <> :status ;
+	`
+	if _, err := db.Exec(qry, s, id); err != nil {
+		return errors.Wrap(err, "update not concluded. rollback executed")
 	}
-	defer stmt.Close()
-	// log.Debug().
-	// 	Str("status", s.String()).
-	// 	Int64("id", id).
-	// 	Int64("idasdsads", int64(s)).
-	// 	Bool("status_", s == status(overdue)).
-	// 	Msg("query params")
-	// var res sql.Result
-	// if s == overdue {
-	// 	res, err = stmt.Exec(overdue, id)
-	// } else {
-	// }
-	res, err := stmt.Exec(s, id)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	if count != 1 {
-		log.Info().Msgf("rowsAffected: %v", count)
-		if err = tx.Rollback(); err != nil {
-			return errors.Wrap(err, "")
-		}
-		log.Info().Msg("update not concluded. rollback executed.")
-		// return errors.New("an error occur while updating")
-		return nil
-	}
-	// tx.Commit()
+
 	log.Info().
-		Int64("id", id).
-		Int64("count", count).
+		Int64("reminder_id", id).
+		// Int64("count", count).
 		Str("new_status", s.String()).
 		Msg("cue status changed.")
 
-	// var reminders []RentReminder
-	// reminders, _ = listReminders(time.Now(), time.Now())
-	// for _, r := range reminders {
-	// 	fmt.Printf("%v \n", r)
-	// }
+	if s == status(paid) {
+		qry = `
+			SELECT id_rent 
+			FROM reminder 
+			WHERE id = ?;
+		`
+		rows, err := db.Query(qry, id)
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("")
+		}
+		rows.Next()
+		var rentId int64
+		if err = rows.Scan(&rentId); err != nil {
+			log.Error().Stack().Err(err).Msg("")
+		}
+		rows.Close()
+		saveRentLog(rentId, "paid")
+	}
 	return nil
 }
 

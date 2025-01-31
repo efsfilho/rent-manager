@@ -1,75 +1,12 @@
-<script setup>
-import DataView from 'primevue/dataview';
-import Button from 'primevue/button';
-import Tag from 'primevue/tag';
-import Block from '../components/Block.vue';
-import ReminderViewer from '../components/ReminderViewer.vue';
-import axios from 'axios';
-import { useQueryClient, useQuery } from '@tanstack/vue-query';
-import { inject, ref } from 'vue';
-// import BlockLog from '../components/BlockLog.vue';
-
-
-const getSeverity = (product) => {
-  switch (product.inventoryStatus) {
-    case 'INSTOCK':
-      return 'success';
-    case 'LOWSTOCK':
-      return 'warning';
-    case 'OUTOFSTOCK':
-      return 'danger';
-    default:
-      return null;
-  }
-}
-
-const { layout } = inject('dashboardLayout');
-const { setBlock } = inject('openEditBlock')
-
-const getTodos = async() => {
-  try {
-    // return (await axios.get('/reminders')).data;
-    let res =  (await axios.get('/reminders'))
-    if (res.status == 200 && Array.isArray(res.data)) {
-      return res.data
-    } else {
-      return []
-    }
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-const queryClient = useQueryClient()
-const { isLoading, isSuccess, isPending, isError, isFetching, data, error, refetch } = useQuery({
-  queryKey: ['blocks'],
-  queryFn: getTodos,
-  throwOnError: (err) => {
-    console.log('ASFASFGGGGGGGGGGG>>>>', err)
-  }
-}, queryClient);
-// const log = ref(true)
-
-// const teste = (d) => console.log(JSON.stringify(d))
-const reminder = ref({});
-const reminderVisible = ref(false);
-const showReminder = (show) => reminderVisible.value = show;
-const setReminder = (item) => {
-  reminder.value = item;
-  showReminder(true);
-}
-</script>
 <template>
   <div class="-mx-2">
-    <!-- <Button @click="() => log = !log">asdasd</Button>
-    <BlockLog
-      v-if="log"
-    /> -->
-    <ReminderViewer v-if="reminderVisible" :reminder="reminder" @close="showReminder(false)"></ReminderViewer>
-    <!-- <EditBlock v-if="editBlockVisible" :block=block @close="showEditBlock(false)"></EditBlock> -->
+    <ReminderViewer 
+      v-if="reminderVisible"
+      :reminder="reminder"
+      @close="showReminder(false)"
+    ></ReminderViewer>
 
     <DataView :value="data" :layout="layout">
-
       <template #list="slotProps">
         <div class="grid grid-nogutter">
           <div v-for="(item, index) in slotProps.items" :key="index" class="col-12">
@@ -178,3 +115,53 @@ const setReminder = (item) => {
     </DataView>
   </div>
 </template>
+<script setup>
+import DataView from 'primevue/dataview';
+import Button from 'primevue/button';
+import Tag from 'primevue/tag';
+import Block from '../components/Block.vue';
+import ReminderViewer from '../components/ReminderViewer.vue';
+import axios from 'axios';
+import { useQueryClient, useQuery } from '@tanstack/vue-query';
+import { inject, ref } from 'vue';
+
+const { layout } = inject('dashboardLayout');
+const queryClient = useQueryClient()
+const getTodos = async() => {
+  try {
+    let res =  (await axios.get('/reminders'))
+    if (res.status == 200 && Array.isArray(res.data)) {
+      return res.data
+    } else {
+      return []
+    }
+  } catch (error) {
+    console.log(error);
+  }
+}
+const { isLoading, isSuccess, isPending, isError, isFetching, data, error, refetch } = useQuery({
+  queryKey: ['reminders'],
+  queryFn: getTodos,
+  throwOnError: (err) => console.log(err),
+}, queryClient);
+
+const reminder = ref({});
+const reminderVisible = ref(false);
+const showReminder = (show) => reminderVisible.value = show;
+const setReminder = (item) => {
+  reminder.value = item;
+  showReminder(true);
+}
+const getSeverity = (product) => {
+  switch (product.inventoryStatus) {
+    case 'INSTOCK':
+      return 'success';
+    case 'LOWSTOCK':
+      return 'warning';
+    case 'OUTOFSTOCK':
+      return 'danger';
+    default:
+      return null;
+  }
+}
+</script>

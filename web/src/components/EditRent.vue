@@ -1,38 +1,30 @@
 <template>
   <div class="grid justify-items-center">
     <Dialog v-model:visible="visible" modal header="Edit Profile" :style="{ width: '25rem' }">
-      <!-- <ReminderLog v-if="logVisible" ></ReminderLog> -->
       <template #header>
         <div class="inline-flex items-center justify-center gap-2">
-          <span v-if="isANewBlock || edit" class="font-bold whitespace-nowrap">{{ isANewBlock ? 'New': 'Edit' }}</span>
+          <span v-if="isNewRent || edit" class="font-bold whitespace-nowrap">{{ isNewRent ? 'New': 'Edit' }}</span>
         </div>
       </template>
-
       <div class="flex items-center gap-4 mb-4">
         <div v-if="isPending" class="flex w-full">
-          <ProgressSpinner/>
+          <ProgressSpinner />
         </div>
         <div v-else class="w-full">
           <Fluid class="">
             <div class="grid grid-cols-1 gap-8 mt-6">
               <div class="col-span-full">
                 <FloatLabel>
-                  <label for="new-block">Block name</label>
-                  <InputText :disabled="!isANewBlock && !edit" id="new-block" v-model="blockName"/>
+                  <label for="new-rent">Rent</label>
+                  <InputText :disabled="!isNewRent && !edit" id="new-rent" v-model="rentName"/>
                 </FloatLabel>
               </div>
-              <!-- <div v-else class="col-span-full">
-                <p class="px-2.5 py-2 text-slate-500">{{ blockName }}</p>
-              </div> -->
-              
               <FloatLabel>
                 <label for="date">Date</label>
-                <DatePicker v-model="blockDate" :disabled="!isANewBlock && !edit" dateFormat="dd/mm/yy" inputId="date" />
+                <DatePicker v-model="rentDate" :disabled="!isNewRent && !edit" dateFormat="dd/mm/yy" inputId="date" />
               </FloatLabel>
             </div>
           </Fluid>
-
-          <!-- <DatePicker id="datepicker-24h" v-model="datetime24h" showTime hourFormat="24" fluid /> -->
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -40,23 +32,22 @@
         <Button severity="secondary" aria-label="Bookmark" label="20" />
         <Button icon="pi pi-search" severity="success" aria-label="Search" />
       </div>
-      <ReminderLog v-if="logVisible" ></ReminderLog>
+      <ReminderLog v-if="logVisible" :rent-id="rentId"></ReminderLog>
       <template #footer>
         <div class="flex w-full justify-between ">
           <div class="flex gap-4">
-            <Button v-if="!isANewBlock && edit" label="Delete" severity="danger" @click="remove()"/>
-            <Button v-if="!isANewBlock && !edit" label="Log" severity="info" @click="() => logVisible = !logVisible"/>
+            <Button v-if="!isNewRent && edit" label="Delete" severity="danger" @click="remove()"/>
+            <Button v-if="!isNewRent && !edit" label="Log" severity="info" @click="() => logVisible = !logVisible"/>
           </div>
           <div class="flex gap-4">
-            <Button v-if="!isANewBlock && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
-            <Button v-if="isANewBlock || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
-            <Button v-if="isANewBlock || edit" label="Save" severity="secondary" @click="save()"/>
-            <Button v-if="!isANewBlock && !edit" label="Edit" severity="secondary" @click="edit=true"/>
+            <Button v-if="!isNewRent && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
+            <Button v-if="isNewRent || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
+            <Button v-if="isNewRent || edit" label="Save" severity="secondary" @click="save()"/>
+            <Button v-if="!isNewRent && !edit" label="Edit" severity="secondary" @click="edit=true"/>
           </div>
         </div>
       </template>
     </Dialog>
-
   </div>
 </template>
 <script setup>
@@ -73,14 +64,16 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { ref, defineEmits, watch, computed,  } from 'vue';
 
 const emit = defineEmits(['close']);
-const props = defineProps(['block']);
-const isANewBlock = ref(!props.block.id);
+const props = defineProps(['rent']);
+const isNewRent = ref(!props.rent.id);
 const edit = ref(false);
 const visible = ref(true);
-const logVisible = ref(true);
+const logVisible = ref(false);
 watch(visible, (n) => {
-  if (!n) 
+  if (!n) {
+    // logVisible.value = false;
     emit('close');
+  }
 });
 
 const removeTZ = (dateString) => {
@@ -101,35 +94,38 @@ const removeTZ = (dateString) => {
   return utcDate;
 }
 
-const blockId = ref(props.block.id);
+const rentId = ref(props.rent.id);
 // 0=pending, 1=due, 2=overdue, 3=paid
 // "info", "warn", "error", "success"
-const isPaid = ref(props.block.status === 3);
-const blockName = ref(props.block.name);
-const blockDate = ref(removeTZ(props.block.date));
+const isPaid = ref(props.rent.status === 3);
+const rentName = ref(props.rent.name);
+const rentDate = ref(removeTZ(props.rent.date));
 
 const createMutation = useMutation({ mutationFn: (data) => axios.post('/rent', data) });
-const updateMutation = useMutation({ mutationFn: (data) => axios.put('/rent/'+blockId.value, {data})});
-const deleteMutation = useMutation({ mutationFn: () => axios.delete('/rent/'+blockId.value) });
-const payMutation = useMutation({ mutationFn: (data) => axios.post('/pay/cue/'+blockId.value) });
+const updateMutation = useMutation({ mutationFn: (data) => axios.put('/rent/'+rentId.value, {data})});
+const deleteMutation = useMutation({ mutationFn: () => axios.delete('/rent/'+rentId.value) });
+const payMutation = useMutation({ mutationFn: (data) => axios.post('/pay/cue/'+rentId.value) });
 const queryClient = useQueryClient();
 const mutationOptions = {
-  onSuccess: () => emit('close'),
-  onSettled: () => queryClient.invalidateQueries({ queryKey: ['blocks'] }),
+  onSuccess: () => {
+    queryClient.refetchQueries({ queryKey: ['reminders'] })
+    emit('close')
+  },
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ['rents'] }),
 }
 
 const save = () => {
-  if (!blockId.value) {
+  if (!rentId.value) {
     createMutation.mutate({
       done: false,
-      name: blockName.value,
-      date: blockDate.value
+      name: rentName.value,
+      date: rentDate.value
     }, mutationOptions)
   } else {
     updateMutation.mutate({
-      id: blockId.value,
-      name: blockName.value,
-      date: blockDate.value
+      id: rentId.value,
+      name: rentName.value,
+      date: rentDate.value
     }, mutationOptions);
   }
 }
@@ -142,7 +138,7 @@ const markAsPaid = () => {
 
 const remove = () => {
   deleteMutation.mutate({
-    id: blockId.value,
+    id: rentId.value,
   }, mutationOptions);
 }
 

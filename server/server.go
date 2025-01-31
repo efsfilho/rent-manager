@@ -114,10 +114,11 @@ func main() {
 
 	// Routes
 	e.Static("/", "web")
-	e.GET("/rent", getRent)
 	e.POST("/rent", postRent)
+	e.GET("/rent", getRent)
 	e.PUT("/rent/:id", putRent)
 	e.DELETE("/rent/:id", delRent)
+	e.GET("/rent/history/:id", getRentHistory)
 
 	e.POST("/process-rent/:id", processRent)
 	e.POST("/process-rent", processRent)

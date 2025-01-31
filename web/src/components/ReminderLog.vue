@@ -1,48 +1,19 @@
 <template>
-  <div class="grid justify-items-center">
-    <!-- <Dialog v-model:visible="visible" modal :style="{ width: '25rem' }"> -->
-      <!-- <Dialog v-model:visible="visible"  modal header="Edit Profile" :style="{ width: '25rem' }"></Dialog> -->
-
-      <!-- <div class="">
-        <DataTable :value="logs" scrollable scrollHeight="500px" >
-            <Column field="date" header="Name" style="width: 20%"></Column>
-            <Column field="log" header="Country"></Column>
-        </DataTable>
-      </div> -->
-
-      <!-- <template #footer>
-        <div class="flex w-full justify-between ">
-          <div class="flex gap-4">
-            <Button v-if="!isANewBlock && edit" label="Delete" severity="danger" @click="remove()"/>
-            <Button v-if="!isANewBlock && !edit" label="Log" severity="info" @click="remove()"/>
-          </div>
-          <div class="flex gap-4">
-            <Button v-if="!isANewBlock && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
-            <Button v-if="isANewBlock || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
-            <Button v-if="isANewBlock || edit" label="Save" severity="secondary" @click="save()"/>
-            <Button v-if="!isANewBlock && !edit" label="Edit" severity="secondary" @click="edit=true"/>
-          </div>
+  <div v-if="isFetching" class="flex w-full "  >
+    <ProgressSpinner />
+  </div>
+  <div v-else>
+    <VirtualScroller v-if="data.length > 0"  :items="data" :itemSize="50" :delay="200" class="border rounded" style="width: 100%; height: 200px">
+      <template v-slot:item="{ item, options }">
+        <div :class="['flex flex-row p-2', { ' bg-slate-100': options.odd }]">
+          <div class="basis-1/3">{{ dateFormat(removeTZ(item.date)) }}</div>
+          <div class="basis-2/3">{{ item.text }}</div>
         </div>
-      </template> -->
-      <div class="card m-4 ">
-      <Fieldset legend="Teste 2">
-        <p class="m-0">-</p>
-        <p class="m-0">
-          Source map error: No sources are declared in this source map.
-          Resource URL: http://localhost:5173/node_modules/.vite/deps/primevue_button.js?v=385cb750
-          Source Map URL: primevue_button.js.map
-        </p>
-        <p class="m-0">-</p>
-        <p class="m-0">-</p>
-        <p class="m-0">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-          
-        </p>
-        <p class="m-0">-</p>
-      </Fieldset>
+      </template>
+    </VirtualScroller>
+    <div v-else class="mt-4">
+      No data
     </div>
-    <!-- </Dialog> -->
-
   </div>
 </template>
 <script setup>
@@ -55,18 +26,38 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Fluid from 'primevue/fluid';
 import DatePicker from 'primevue/datepicker';
+import VirtualScroller from 'primevue/virtualscroller';
 import axios from 'axios';
-import { useMutation, useQueryClient } from '@tanstack/vue-query';
-import { ref, defineEmits, watch, computed, onMounted  } from 'vue';
+import { ref, watch } from 'vue';
+// import { useMutation, useQueryClient } from '@tanstack/vue-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 
-const emit = defineEmits(['close']);
-const props = defineProps(['block']);
-const logs = ref([
-  {date: '20/05/2024', log: 'sdasdas'},
-  {date: '20/05/2024', log: '1f3d24hdf6h54fh'},
-  {date: '20/05/2024', log: 'dsfsdglkçals'},
-  {date: '20/05/2024', log: 'fsdgsdg'},
-])
+const { data, refetch, isFetching, isPending } = useQuery({
+  queryKey: ['logs'],
+  queryFn: async () => {
+    // (await axios.get('/scheduler/history')).data
+    const d = (await axios.get('/rent/history/'+props.rentId)).data
+    // return ['dddd','dss']
+    // console.log('DDDDD', d.length)
+    // d.length = 10;
+    // if (d.length == 0){
+    //   d.push({ text:'no data'})
+    // }
+    return d
+  }
+});
+const dateFormat = (d) => {
+  return !d ? "" : new Date(d).toLocaleString("pt-BR")
+}
+
+// const emit = defineEmits(['close']);
+const props = defineProps(['rentId']);
+// const logs = ref(Array.from([
+//   {date: '20/05/2024', log: 'sdasdas'},
+//   {date: '20/05/2024', log: '1f3d24hdf6h54fh'},
+//   {date: '20/05/2024', log: 'dsfsdglkçals'},
+//   {date: '20/05/2024', log: 'fsdgsdg'},
+// ]))
 
 // onMounted(() => {
 //   logs.value = [
