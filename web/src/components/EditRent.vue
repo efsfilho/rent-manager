@@ -1,11 +1,7 @@
 <template>
   <div class="grid justify-items-center">
-    <Dialog v-model:visible="visible" modal header="Edit Profile" :style="{ width: '25rem' }">
-      <template #header>
-        <div class="inline-flex items-center justify-center gap-2">
-          <span v-if="isNewRent || edit" class="font-bold whitespace-nowrap">{{ isNewRent ? 'New': 'Edit' }}</span>
-        </div>
-      </template>
+    <Dialog v-model:visible="visible" modal :header="isNewRent ? 'New': 'Edit'" :style="{ width: '25rem' }">
+
       <div class="flex items-center gap-4 mb-4">
         <div v-if="isPending" class="flex w-full">
           <ProgressSpinner />
@@ -16,42 +12,51 @@
               <div class="col-span-full">
                 <FloatLabel>
                   <label for="new-rent">Rent</label>
-                  <InputText :disabled="!isNewRent && !edit" id="new-rent" v-model="rentName"/>
+                  <InputText id="new-rent" :disabled="!isNewRent && !isEditing" v-model="rentName" />
                 </FloatLabel>
               </div>
               <FloatLabel>
                 <label for="date">Date</label>
-                <DatePicker v-model="rentDate" :disabled="!isNewRent && !edit" dateFormat="dd/mm/yy" inputId="date" />
+                <DatePicker inputId="date" :disabled="!isNewRent && !isEditing"  v-model="rentDate" dateFormat="dd/mm/yy" />
               </FloatLabel>
             </div>
           </Fluid>
         </div>
       </div>
-      <div class="flex items-center gap-4">
-        <Button aria-label="Filter" label="10"/>
-        <Button severity="secondary" aria-label="Bookmark" label="20" />
-        <Button icon="pi pi-search" severity="success" aria-label="Search" />
-      </div>
-      <ReminderLog v-if="logVisible" :rent-id="rentId"></ReminderLog>
       <template #footer>
-        <div class="flex w-full justify-between ">
-          <div class="flex gap-4">
-            <Button v-if="!isNewRent && edit" label="Delete" severity="danger" @click="remove()"/>
-            <Button v-if="!isNewRent && !edit" label="Log" severity="info" @click="() => logVisible = !logVisible"/>
+        <div class="flex flex-col w-full gap-4">
+
+          <div class="flex w-full justify-between">
+            <div class="flex gap-4">
+              <Button v-if="isEditing" label="Delete" severity="danger" @click="remove()"/>
+              <Button v-if="!isNewRent && !isEditing" label="Log" severity="info" @click="() => logVisible = !logVisible"/>
+            </div>
+            
+            <div class="flex gap-4">
+              <!-- <Button v-if="!isPaid" label="Paid" severity="success" @click="markAsPaid"/> TODO --> 
+              <Button v-if="isNewRent || isEditing" label="Cancel" severity="secondary" @click="cancel()" autofocus />
+              <Button v-if="isNewRent || isEditing" label="Save" severity="secondary" @click="save()"/>
+              <Button v-if="!isNewRent && !isEditing" label="Edit" severity="secondary" @click="edit()"/>
+            </div>
           </div>
-          <div class="flex gap-4">
-            <Button v-if="!isNewRent && !edit && !isPaid" label="Paid" severity="success" @click="markAsPaid"/>
-            <Button v-if="isNewRent || edit" label="Cancel" severity="secondary" @click="edit=false" autofocus />
-            <Button v-if="isNewRent || edit" label="Save" severity="secondary" @click="save()"/>
-            <Button v-if="!isNewRent && !edit" label="Edit" severity="secondary" @click="edit=true"/>
+          {{ props.rent.status }}
+          <div class="flex w-full justify-between">
+            <RentLog v-if="logVisible" :rent-id="rentId"></RentLog>
           </div>
+          <!--  TODO 
+          <div v-if="!isEditing" class="flex items-center gap-4">
+            <Button aria-label="Filter" label="10"/>
+            <Button severity="secondary" aria-label="Bookmark" label="20" />
+            <Button icon="pi pi-search" severity="success" aria-label="Search" />
+          </div>
+          -->
         </div>
       </template>
     </Dialog>
   </div>
 </template>
 <script setup>
-import ReminderLog from './ReminderLog.vue';
+import RentLog from './RentLog.vue';
 import InputText from 'primevue/inputtext';
 import FloatLabel from 'primevue/floatlabel';
 import Button from "primevue/button";
@@ -65,26 +70,17 @@ import { ref, defineEmits, watch, computed,  } from 'vue';
 
 const emit = defineEmits(['close']);
 const props = defineProps(['rent']);
-const isNewRent = ref(!props.rent.id);
-const edit = ref(false);
+const isEditing = ref(false);
 const visible = ref(true);
 const logVisible = ref(false);
 watch(visible, (n) => {
   if (!n) {
-    // logVisible.value = false;
     emit('close');
   }
 });
 
 const removeTZ = (dateString) => {
-  // let isoDate = new Date();
-  // if (dateString) {
-  //   isoDate = new Date(dateString);
-  // }
-  // // remove timezone offset
-  // isoDate.setMinutes(isoDate.getMinutes() + isoDate.getTimezoneOffset())
-  // return isoDate;
-  // // year selecting issue: https://github.com/primefaces/primevue/issues/6203
+  // year selecting issue: https://github.com/primefaces/primevue/issues/6203
   let utcDate = new Date();
   if (dateString) {
     utcDate = new Date(dateString);
@@ -97,7 +93,7 @@ const removeTZ = (dateString) => {
 const rentId = ref(props.rent.id);
 // 0=pending, 1=due, 2=overdue, 3=paid
 // "info", "warn", "error", "success"
-const isPaid = ref(props.rent.status === 3);
+const isNewRent = ref(!props.rent.id);
 const rentName = ref(props.rent.name);
 const rentDate = ref(removeTZ(props.rent.date));
 
@@ -113,7 +109,16 @@ const mutationOptions = {
   },
   onSettled: () => queryClient.invalidateQueries({ queryKey: ['rents'] }),
 }
-
+const edit = () => {
+  isEditing.value = true;
+}
+const cancel = () => {
+  if (isEditing.value) {
+    isEditing.value = false;
+  } else {
+    emit('close');
+  }
+}
 const save = () => {
   if (!rentId.value) {
     createMutation.mutate({
