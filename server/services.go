@@ -278,6 +278,20 @@ func initDb() error {
 		return errors.Wrap(err, "rent_log not created")
 	}
 
+	qry = `
+		CREATE TABLE IF NOT EXISTS scheduler (
+			id 			INTEGER 
+						NOT NULL 
+						PRIMARY KEY 
+						AUTOINCREMENT,
+			start_exec 	DATETIME,
+			end_exec 	DATETIME,
+			next_exec 	DATETIME
+		)
+	`
+	if _, err := db.Exec(qry); err != nil {
+		return errors.Wrap(err, "scheduler not created")
+	}
 	// qry = `
 	// 	CREATE TABLE IF NOT EXISTS log_cue_register (
 	// 		id integer not null primary key AUTOINCREMENT,
@@ -377,18 +391,6 @@ func populateDb() error {
 	// dt = dt.AddDate(0, 0, 1)
 	dt = time.Date(dt.Year(), dt.Month(), rand.IntN(20), 0, 0, 0, 0, time.UTC)
 	if _, err := db.Exec("insert into rent (name, date) values ('TESTESTE', ?)", dt.Format(time.DateOnly)); err != nil {
-		return errors.Wrap(err, "trigger not created")
-	}
-
-	qry := `
-	CREATE TABLE IF NOT EXISTS scheduler (
-		id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-		start_exec DATETIME,
-		end_exec DATETIME,
-		next_exec DATETIME
-	)
-	`
-	if _, err := db.Exec(qry); err != nil {
 		return errors.Wrap(err, "trigger not created")
 	}
 
@@ -1061,6 +1063,8 @@ func checkDiff() {
 //		// s1.ticker.Stop()
 //		// // s1.done <- true
 //	}
+var lastSchedulerExecution time.Time
+
 func executeScheduler(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
@@ -1069,7 +1073,9 @@ func executeScheduler(interval time.Duration) {
 			case <-ticker.C:
 				{
 					log.Info().Msg("scheduler start")
-					result, err := dbExec("INSERT INTO scheduler (start_exec) VALUES (?);", time.Now().Format(sqliteLayout))
+
+					qry := `INSERT INTO scheduler (start_exec) VALUES (?);`
+					result, err := dbExec(qry, time.Now().Format(sqliteLayout))
 					if err != nil {
 						log.Error().Stack().Err(err).Msg("")
 					}
@@ -1078,9 +1084,18 @@ func executeScheduler(interval time.Duration) {
 						log.Error().Stack().Err(err).Msg("")
 					}
 
+					if lastSchedulerExecution.IsZero() {
+						lastSchedulerExecution = time.Now()
+					}
+					if time.Now().Month() != lastSchedulerExecution.Month() {
+						lastSchedulerExecution = time.Now()
+						createReminder(0)
+					}
+
 					processRemindersDates(0)
 
-					_, err = dbExec("UPDATE scheduler SET end_exec = ? WHERE id = ?;", time.Now().Format(sqliteLayout), scheduler_id)
+					qry = `UPDATE scheduler SET end_exec = ? WHERE id = ?;`
+					_, err = dbExec(qry, time.Now().Format(sqliteLayout), scheduler_id)
 					if err != nil {
 						log.Error().Stack().Err(err).Msg("")
 					}
