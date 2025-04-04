@@ -45,7 +45,7 @@ func main() {
 	renew := false
 	// renew = true
 	// Data base init
-	dbFile := "rentmem.db"
+	dbFile := "/storage/rentmem.db"
 	if renew {
 		os.Remove(dbFile)
 	}
@@ -147,7 +147,7 @@ func main() {
 	// e.DELETE("/properties/:id", deleteProperty)
 
 	// e.POST("/rents", postRent)
-	executeScheduler(1 * time.Hour)
+	executeScheduler(3 * time.Hour)
 
 	// fmt.Print(time.Local)
 	port := os.Getenv("PORT")
