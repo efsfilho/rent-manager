@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"time"
 
@@ -487,49 +488,67 @@ func updateRent(rentId int64, newValues map[string]interface{}) error {
 	var queryColumns []string
 	var queryValues []any
 	var allowedFields []string = []string{"status", "name", "date", "dt"}
+
+	// Track if date is being updated
+	var dateChanged bool
+	var oldDateStr string
+	var newDateStr string
+
 	// detect fields to be used in where clause
 	for _, field := range allowedFields {
 		if value, ok := newValues[field]; ok {
 			queryColumns = append(queryColumns, field+" = ?")
 			if field == "date" {
+				dateChanged = true
 				parsedDate, err := parseIsoDateTime(value)
 				if err != nil {
 					return errors.Wrap(err, "parseIsoDateTime()")
 				}
-				queryValues = append(queryValues, parsedDate.Format(time.DateOnly))
+				newDateStr = parsedDate.Format(time.DateOnly)
+				queryValues = append(queryValues, newDateStr)
+
+				// Get the current date before updating
+				row := db.QueryRow("SELECT date FROM rent WHERE id = ?", rentId)
+				if err := row.Scan(&oldDateStr); err != nil {
+					return errors.Wrap(err, "failed to get current rent date")
+				}
 			} else if field == "dt" {
 				// TODO remove field dt
-				// log.Info().Str("dt 1", value.(string)).Msg("")
 				dtParsed, _ := parseIsoDateTime(value)
-				// dtParsed, _ := time.Parse(sqliteLayout, value.(string))
-				// log.Info().Str("dt 2", dtParsed.Format(sqliteLayout)).Msg("")
 				queryValues = append(queryValues, dtParsed.Format(sqliteLayout))
 			} else {
 				queryValues = append(queryValues, value)
 			}
 		}
 	}
+
 	var logValues []string
 	for _, v := range queryValues {
 		logValues = append(logValues, v.(string))
 	}
 	queryValues = append(queryValues, rentId)
+
 	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "db.Begin()")
 	}
-	// defer tx.Commit()
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
 	log.Debug().
 		Int("in_use", db.Stats().InUse).
 		Int("open_connections", db.Stats().OpenConnections).
 		Msg("updateRent()")
+
 	qry := `
-		UPDATE rent 
-		SET ` + strings.Join(queryColumns, ", ") + `
-		WHERE id = ? 
-		  AND active = TRUE;
-	`
+        UPDATE rent 
+        SET ` + strings.Join(queryColumns, ", ") + `
+        WHERE id = ? 
+          AND active = TRUE;
+    `
 	log.Debug().Stack().Str("query_prepared", qry).Msg("")
 	log.Debug().Interface("query_values", queryValues).Msg("")
 
@@ -537,27 +556,72 @@ func updateRent(rentId int64, newValues map[string]interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	// defer stmt.Close()
+	defer stmt.Close()
+
 	res, err := stmt.Exec(queryValues...)
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+
 	count, err := res.RowsAffected()
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
+
 	if count != 1 {
 		log.Info().Msgf("rowsAffected: %v", count)
-		if err = tx.Rollback(); err != nil {
-			return errors.Wrap(err, "")
-		}
-		log.Info().Msg("update not concluded. rollback executed.")
-		return errors.New("an error occur while updating")
+		return errors.New("an error occurred while updating")
 	}
-	defer saveRentLog(rentId, fmt.Sprintf("updated: %v", strings.Join(logValues, " - ")))
-	defer stmt.Close()
-	defer tx.Commit()
+
+	// If date was changed, update the related reminder
+	if dateChanged {
+		// Get current month's reminder
+		firstDay, _ := getFirstLastDayOfMonth(time.Now())
+		currentMonthReminderDate := firstDay.AddDate(0, 0, getDayFromDateString(oldDateStr)-1)
+
+		// Update the reminder's date if it exists
+		updateReminderQry := `
+            UPDATE reminder
+            SET date = ?
+            WHERE id_rent = ?
+              AND date = ?
+              AND active = TRUE
+        `
+
+		newDay := getDayFromDateString(newDateStr)
+		newReminderDate := firstDay.AddDate(0, 0, newDay-1)
+
+		_, err = tx.Exec(updateReminderQry,
+			newReminderDate.Format(time.DateOnly),
+			rentId,
+			currentMonthReminderDate.Format(time.DateOnly),
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed to update reminder date")
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "tx.Commit()")
+	}
+
+	saveRentLog(rentId, fmt.Sprintf("updated: %v", strings.Join(logValues, " - ")))
+
+	// Re-process reminder to update its status
+	if err := processRemindersDates(rentId); err != nil {
+		log.Warn().Err(err).Msg("failed to process reminders after date update")
+	}
 	return nil
+}
+
+// Helper function to extract day from date string (YYYY-MM-DD)
+func getDayFromDateString(dateStr string) int {
+	parts := strings.Split(dateStr, "-")
+	if len(parts) < 3 {
+		return 0
+	}
+	day, _ := strconv.Atoi(parts[2])
+	return day
 }
 
 func removeRent(rentId int64) error {
@@ -932,6 +996,8 @@ func processRemindersDates(rentId int64) error {
 		// 0=pending, 1=due, 2=overdue, 3=paid
 		// "info", "warn", "error", "success"
 		log.Debug().
+			Int64("rent_id", reminder.RentId).
+			Int64("id", reminder.Id).
 			Interface("rent_status", reminder.Status).
 			Str("name", reminder.RentName).
 			Str("date", reminder.Date).
